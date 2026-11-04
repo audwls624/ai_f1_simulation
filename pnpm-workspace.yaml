@@ -1,0 +1,7 @@
+packages:
+  - packages/*
+  - apps/*
+
+# package.json engines(Node 24)를 강제한다: 다른 Node 버전이면 pnpm install·pnpm run이 실패한다.
+# 결정성 보장이 "같은 Node 버전"까지라서 (DESIGN.md 11절).
+engineStrict: true

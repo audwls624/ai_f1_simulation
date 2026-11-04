@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.DS_Store
+
+# 시즌 출력 (DESIGN.md 10·13절)
+runs/
+
+# Claude Code 로컬 설정
+.claude/settings.local.json

@@ -1,0 +1,45 @@
+// @f1sim/core 공개 API (DESIGN.md 16절). M1 세션 1: rng, regulations, car.
+export { makeRng, type Rng } from './rng.js';
+
+export {
+  CompoundSchema,
+  DRY_COMPOUNDS,
+  PaceModeSchema,
+  RegulationsError,
+  RegulationsSchema,
+  SurfaceSchema,
+  cost,
+  formatIssue,
+  parseRegulations,
+  validateSpec,
+  type Compound,
+  type PaceMode,
+  type Regulations,
+  type Result,
+  type Surface,
+  type ValidationIssue,
+} from './regulations.js';
+
+export {
+  CarSpecSchema,
+  ErsModeSchema,
+  PhilosophySchema,
+  RideHeightSchema,
+  SPEC_PARAMS,
+  SPEC_PARAM_MAX,
+  SPEC_PARAM_MIN,
+  SetupSchema,
+  WING_LEVEL_MAX,
+  WING_LEVEL_MIN,
+  WheelbaseSchema,
+  derive,
+  type CarSpec,
+  type DeriveTrackInput,
+  type DerivedPerf,
+  type ErsMode,
+  type Philosophy,
+  type RideHeight,
+  type Setup,
+  type SpecParamKey,
+  type Wheelbase,
+} from './car.js';

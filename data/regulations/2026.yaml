@@ -1,0 +1,206 @@
+# f1sim 2026 시즌 규정 — docs/DESIGN.md 3·4·6절의 숫자.
+#
+# - 모든 키는 RegulationsSchema(strict)가 검증한다. 알 수 없는 키·빠진 키는 거부.
+# - `TODO(balance)`: 문서에 값이 없어 정한 출발값. 밸런스 하네스(12절)가 조정한다.
+#   표시가 없는 값은 문서에 적힌 값 그대로다.
+# - `[a, b]` 쌍: 해당 스펙 파라미터가 0.0일 때 a, 1.0일 때 b (선형 보간). wing 관련은 wing_level/10 기준.
+#
+# 시즌 중 업그레이드 윈도우(2·3절: GP 8·16 직전, 풍동 5회)는 9절 인터페이스(designCar·planGp만)와
+# 아직 맞지 않아 넣지 않았다. 유지하기로 하면 tools에 wind_tunnel_runs_per_upgrade_window: 5를 추가한다.
+
+season: 2026
+
+# ── 3절: 코스트 캡과 비용 곡선 ───────────────────────────────────────────
+cost:
+  cap_credits: 100          # 프리시즌 설계 총 예산
+  exponent: 2               # 비용 = w · x^p. 14절: p는 하네스가 결정
+  weights:                  # 크레딧 (x = 1.0 기준). 아키텍처(philosophy, wheelbase)는 비용 0, 변경 불가
+    aero_efficiency: 20
+    thermal_efficiency: 18
+    weight_reduction: 14
+    mech_grip: 12
+    tire_management: 10
+    ers_capacity: 8
+    reliability: 8
+    cooling: 6
+    dirty_air_resistance: 6
+    drs_effect: 4
+
+# ── 3절: 고정 제약 ──────────────────────────────────────────────────────
+limits:
+  fuel_flow_kg_per_h: 100       # 출력이 여기에 걸린다 → thermal_efficiency가 출력·연비를 동시에 결정
+  min_weight_kg: 798            # weight_reduction 1.0 = 최소 무게
+  weight_reduction_span_kg: 30  # weight_reduction 0.0 = 최소 무게 + 30 kg
+
+# 3절: 횟수 자체가 규정 (ATR)
+tools:
+  wind_tunnel_runs_preseason: 20
+  strategy_sim_runs_per_gp: 5
+
+# 3절: 1–10위. 패스티스트 랩 포인트 없음
+points: [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]
+
+penalties:
+  dry_compound_rule_s: 30       # 건조 레이스 2종 컴파운드 의무 위반
+  resubmissions: 1              # 스펙·전략 검증 실패 시 재제출 기회
+  response_timeout_s: 600       # 2절: 응답 제한 시간 기본 10분. 초과는 검증 실패와 동일
+
+# 3절: 재제출도 실패하면 이 스펙 (+ 첫 GP 그리드 최후위).
+# 기본 전략(1스톱 medium→hard)은 전략 DSL 스키마가 생기는 M3에서 추가한다.
+fallback:
+  spec:                         # TODO(balance): 문서에 값 없음. 전부 0.7 (3절 예시, 약 52 크레딧)
+    powertrain: { thermal_efficiency: 0.7, reliability: 0.7, ers_capacity: 0.7, cooling: 0.7 }
+    chassis: { weight_reduction: 0.7, mech_grip: 0.7, tire_management: 0.7, wheelbase: long }
+    aero: { aero_efficiency: 0.7, philosophy: wing, dirty_air_resistance: 0.7, drs_effect: 0.7 }
+
+# ── 3·6절: 타이어 ───────────────────────────────────────────────────────
+tires:
+  allocation_sets: { soft: 8, medium: 3, hard: 2, inter: 4, wet: 3 }   # GP당 세트 (3절)
+  qualifying: { compound: soft, sets: 1 }                             # 예선은 soft 1세트 소모 (3절)
+  dry_race_min_compounds: 2                                           # 건조 레이스 드라이 컴파운드 최소 종류 (3절)
+
+  # 6절 표. offset_s: 노면별 랩타임 오프셋. warmup_laps: 컴파운드 워밍업 랩.
+  # dry_wear_mult: dry 노면 마모 승수 (inter ×3, wet ×4).
+  # 슬릭의 damp/wet 오프셋은 문서에 없다 → TODO(balance) (6절 "잘못된 컴파운드는 추가 페널티").
+  compounds:
+    soft:
+      offset_s: { dry: -0.8, damp: 3.0, wet: 12.0 }   # TODO(balance): damp·wet
+      wear_per_lap: 0.045
+      dry_wear_mult: 1
+      cliff_life: 0.25
+      warmup_laps: 0
+    medium:
+      offset_s: { dry: 0.0, damp: 3.5, wet: 12.5 }    # TODO(balance): damp·wet
+      wear_per_lap: 0.030
+      dry_wear_mult: 1
+      cliff_life: 0.20
+      warmup_laps: 1
+    hard:
+      offset_s: { dry: 0.5, damp: 4.0, wet: 13.0 }    # TODO(balance): damp·wet
+      wear_per_lap: 0.020
+      dry_wear_mult: 1
+      cliff_life: 0.15
+      warmup_laps: 2
+    inter:
+      offset_s: { dry: 4.0, damp: 0.0, wet: 1.5 }
+      wear_per_lap: 0.035
+      dry_wear_mult: 3
+      cliff_life: 0.20
+      warmup_laps: 0
+    wet:
+      offset_s: { dry: 8.0, damp: 2.0, wet: 0.0 }
+      wear_per_lap: 0.030
+      dry_wear_mult: 4
+      cliff_life: 0.20
+      warmup_laps: 0
+
+  # 6절 deg(life): 클리프 위에서는 선형(life 1.0 → 0, 클리프 → linear_max_s),
+  # 클리프 아래에서는 cliff_base_s에서 시작해 가파르게 증가.
+  degradation:
+    linear_max_s: 1.0
+    cliff_base_s: 1.5
+    cliff_slope_s: 20           # TODO(balance): 클리프 아래 life 1.0 감소당 +s ("가파르게")
+
+  downforce_wear_relief: 0.1    # 6절: 마모 × (1 − 0.1 · wing_level/10)
+  dirty_air_wear: 0.1           # 6절: 마모 × (1 + 0.1 · dirty_air)
+
+# ── 6절: 페이스 모드 ────────────────────────────────────────────────────
+pace_modes:
+  push:     { lap_delta_s: -0.3, wear_mult: 1.3,  fuel_mult: 1.1, failure_mult: 1.5 }
+  normal:   { lap_delta_s: 0.0,  wear_mult: 1.0,  fuel_mult: 1.0, failure_mult: 1.0 }
+  conserve: { lap_delta_s: 0.3,  wear_mult: 0.75, fuel_mult: 0.9, failure_mult: 0.8 }
+
+# ── 6절: 연료 ───────────────────────────────────────────────────────────
+fuel:
+  reserve_kg: 2                 # 시작 연료 = 랩 수 × 랩당 연료 + 여유
+  lap_time_per_kg_s: 0.03       # 연료 kg당 랩타임 (F1 통상값)
+
+# ── 6절: 랩타임 ─────────────────────────────────────────────────────────
+laptime:
+  noise_sd_s: 0.12              # 레이스 랩 노이즈 σ (노이즈는 호출자가 rng로 만든다)
+  surface_grip: { dry: 1.0, damp: 0.8, wet: 0.65 }   # 노면별 μ 승수
+  straight_step_m: 5            # 직선 수치 적분 간격 Δs
+
+# 6절 식의 물리 상수
+physics:
+  gravity_m_s2: 9.81
+  air_density_kg_m3: 1.2
+
+# ── 4절: 파생 성능치 계수 (derive) ─────────────────────────────────────
+# 문서는 방향(올리면/대가)만 정하고 크기는 비워 뒀다 → 대부분 TODO(balance).
+car:
+  power:
+    fuel_energy_mj_per_kg: 43                 # TODO(balance): 연료 발열량. 출력 = 연료 유량 × 발열량 × η
+    thermal_efficiency_eta: [0.44, 0.52]      # TODO(balance): thermal_efficiency → 열효율 η (약 525–621 kW)
+    reliability_power_loss: 0.02              # TODO(balance): reliability 1.0이면 출력 −2% (보수적 맵)
+
+  cooling:                                    # 4절 상호작용 1: cooling × 기온
+    derate_from_c: 30                         # 이 기온 이상에서 디레이팅 (문서값)
+    full_cooling_at_c: 45                     # TODO(balance): 이 기온이면 cooling 1.0이 있어야 디레이팅 0
+    max_derate: 0.08                          # TODO(balance): 냉각 부족분 1.0일 때 출력 −8%
+    drag_at_full: 0.04                        # TODO(balance): cooling 1.0의 라디에이터 개구부 → 드래그 +4%
+
+  mass:
+    battery_kg_at_full_ers: 6                 # TODO(balance): ers_capacity 1.0의 배터리 추가 무게
+
+  ers:
+    boost: [0.2, 1.0]                         # TODO(balance): ers_capacity → 추월·방어 보너스 (무차원)
+    # power_kw: 랩 평균 출력 가감. depletion: ers_capacity 0.0에서 에너지 고갈로 잃는 비율 (1.0이면 0).
+    # boost_mult: 추월·방어 보너스 승수.
+    # 문서에는 harvest의 이점이 없다 → 현재 harvest는 balanced에 지배된다 (밸런스·설계 결정 필요).
+    modes:                                    # TODO(balance): 전부
+      harvest:  { power_kw: -20, depletion: 0.0,  boost_mult: 0.5 }
+      balanced: { power_kw: 0,   depletion: 0.0,  boost_mult: 1.0 }
+      attack:   { power_kw: 40,  depletion: 0.75, boost_mult: 1.5 }
+
+  aero:
+    downforce_area_m2: [3.0, 5.0]             # TODO(balance): wing_level 0 → 10의 Cl·A
+    drag_area_m2: [1.0, 1.6]                  # TODO(balance): wing_level 0 → 10의 Cd·A
+    drag_curve_exponent: 1.5                  # TODO(balance): > 1이면 윙을 올릴수록 L/D 악화 (효율 곡선)
+    aero_grip_mu: 1.5                         # TODO(balance): 다운포스 하중에 대한 타이어 마찰계수
+    efficiency_drag_cut: 0.10                 # TODO(balance): aero_efficiency 1.0이면 같은 다운포스에서 드래그 −10%
+    drs_gain: [0.10, 0.22]                    # TODO(balance): drs_effect → DRS 개방 시 드래그 감소율
+    drs_drag_cost: 0.015                      # TODO(balance): drs_effect 1.0의 효율 손실 (상시 드래그 +1.5%)
+    dirty_air_loss: [0.35, 0.12]              # TODO(balance): dirty_air_resistance → 앞차 뒤 다운포스 손실률
+    # [philosophy][ride_height] 다운포스·드래그 승수. floor는 low에서만 효율을 낸다 (셋업 윈도우가 좁다).
+    ride_height:                              # TODO(balance): 전부
+      floor:
+        low:  { downforce: 1.08, drag: 0.97 }
+        mid:  { downforce: 0.98, drag: 1.00 }
+        high: { downforce: 0.92, drag: 1.00 }
+      wing:
+        low:  { downforce: 1.00, drag: 1.00 }
+        mid:  { downforce: 0.98, drag: 1.00 }
+        high: { downforce: 0.95, drag: 1.00 }
+
+  chassis:
+    mech_grip_mu: [1.45, 1.75]                # TODO(balance): mech_grip → 기계적 마찰계수 μ
+    wheelbase:                                # TODO(balance): long = 고속 안정·에어로 플랫폼, short = 저속 민첩
+      long:  { downforce: 1.03, mech_grip: 1.00 }
+      short: { downforce: 1.00, mech_grip: 1.03 }
+
+  instability:
+    bumpy_from: 0.5                           # TODO(balance): bumpiness가 이 값 이상이면 범피 트랙
+    floor_min_mech_grip: 0.5                  # 4절 상호작용 2: floor × mech_grip < 0.5 → 불안정
+    floor:                                    # floor × (mech_grip < 0.5 또는 범피 트랙)
+      downforce_loss: 0.06                    # TODO(balance): "랩타임 +"를 다운포스 손실로 표현
+      wear_mult: 1.15                         # 문서값
+    # 범피 트랙에서 low ride height 불안정. 심각도 = (bumpiness − bumpy_from)/(1 − bumpy_from) × 민감도.
+    low_ride_on_bumps:
+      ride_height_sensitivity: { low: 1.0, mid: 0.3, high: 0.0 }  # TODO(balance): 문서는 low만 언급
+      philosophy_sensitivity: { floor: 1.0, wing: 0.5 }          # TODO(balance): floor가 범프에 민감 (4절)
+      downforce_loss: 0.35                    # TODO(balance): 심각도 1.0일 때 다운포스 손실
+      mech_grip_loss: 0.05                    # TODO(balance): 심각도 1.0일 때 기계적 그립 손실
+
+  tire_management:
+    deg_multiplier: [1.0, 0.6]                # 6절: tire_management → 마모 승수
+    warmup_penalty_s: [0.0, 0.5]              # TODO(balance): 워밍업 페널티 크기 (s/lap)
+    warmup_laps: { qualifying: 1, race: 2 }   # 4절: 예선 1랩, 레이스 초반 2랩에 페널티
+
+  reliability:
+    failure_rate_per_lap: [0.003, 0.0004]     # TODO(balance): reliability → 랩당 고장 확률 (기온·페이스 승수 전)
+    thermal_efficiency_failure: 0.25          # TODO(balance): thermal_efficiency 1.0이면 고장률 ×1.25 ("소폭↑")
+
+  fuel:
+    per_km_kg: 0.32                           # TODO(balance): normal 페이스 랩당 연료 = 길이(km) × 이 값 × (1 − 절감)
+    thermal_efficiency_saving: 0.08           # TODO(balance): thermal_efficiency 1.0이면 랩당 연료 −8%

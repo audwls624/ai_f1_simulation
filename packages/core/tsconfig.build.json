@@ -1,0 +1,13 @@
+{
+  // 빌드 겸 순수성 검사: lib는 ES만, Node·DOM 타입 없음.
+  // src에서 window·document·process·fetch·console·setTimeout 등을 쓰면 여기서 컴파일 오류가 난다.
+  // (Date·Math.random은 ES 표준이라 eslint가 막는다.)
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "types": [],
+    "customConditions": []
+  },
+  "include": ["src"]
+}

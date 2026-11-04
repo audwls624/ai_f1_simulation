@@ -1,0 +1,20 @@
+{
+  "name": "@f1sim/agents",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "TeamAgent 프로토콜, 툴(windTunnel·strategySim), 에이전트 구현체 (docs/DESIGN.md 9·13절)",
+  "exports": {
+    ".": {
+      "@f1sim/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": { "@f1sim/core": "workspace:*" }
+}

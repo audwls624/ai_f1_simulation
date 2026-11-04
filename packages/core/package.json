@@ -1,0 +1,24 @@
+{
+  "name": "@f1sim/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "순수 엔진: I/O·DOM·Node API·Date·Math.random 없음 (docs/DESIGN.md 1·13절)",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "@f1sim/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.build.json --noEmit"
+  },
+  "dependencies": {
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  }
+}

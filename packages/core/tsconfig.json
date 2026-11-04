@@ -1,0 +1,9 @@
+{
+  // 에디터·테스트용: src + test, Node 타입 포함 (테스트가 node:fs로 yaml을 읽는다).
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["src", "test"]
+}

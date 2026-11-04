@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    // 개발·테스트에서는 워크스페이스 패키지를 dist가 아니라 src로 해석한다 (package.json exports 참고).
+    // 빌드 설정(tsconfig.build.json)은 이 조건을 끄고 dist를 본다.
+    "customConditions": ["@f1sim/source"],
+    // 기본은 Node·DOM 타입 없음. 필요한 패키지(테스트, runner)만 "node"를 켠다.
+    "types": [],
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  }
+}

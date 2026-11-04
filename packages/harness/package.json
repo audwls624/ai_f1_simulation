@@ -1,0 +1,20 @@
+{
+  "name": "@f1sim/harness",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "밸런스 테스트 하네스 (docs/DESIGN.md 12절)",
+  "exports": {
+    ".": {
+      "@f1sim/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": { "@f1sim/agents": "workspace:*", "@f1sim/core": "workspace:*" }
+}

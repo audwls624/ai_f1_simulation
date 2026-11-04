@@ -1,0 +1,9 @@
+{
+  // 루트 설정 파일(vitest.config.ts) 타입 검사용. 패키지는 각자의 tsconfig.json을 쓴다.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["vitest.config.ts"]
+}
