@@ -78,3 +78,12 @@ button:hover, select:hover { border-color: var(--text-muted); }
 .tip { position: absolute; pointer-events: none; background: var(--surface-1); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 12px; box-shadow: 0 2px 8px rgb(0 0 0 / 0.12); }
 .tip b { color: var(--text-primary); }
 .tip span { color: var(--text-secondary); }
+
+/* 좁은 화면: 지도 위, 순위·이벤트 아래 */
+@media (max-width: 900px) {
+  .app { height: auto; min-height: 100vh; }
+  .body { grid-template-columns: 1fr; grid-template-rows: minmax(320px, 60vh) auto; }
+  .side { border-left: none; border-top: 1px solid var(--border); }
+  .bar { flex-wrap: wrap; }
+  .bar h1 { flex-basis: 100%; order: 3; }
+}

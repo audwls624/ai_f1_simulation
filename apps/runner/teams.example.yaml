@@ -1,5 +1,5 @@
 # 시즌 참가 팀 (DESIGN.md 9·13절, 운영 안내: docs/CODING-AGENTS.md).
-#   pnpm -F @f1sim/runner season --teams-file teams.example.yaml [--gps 1] [--concurrency N]
+#   pnpm race [--tracks spa] [--gps 1] [--concurrency N]     (루트에서. = pnpm -F @f1sim/runner season --teams-file teams.example.yaml)
 #
 # command가 있으면 헤드리스: 러너가 팀 워크스페이스에서 이 명령을 띄운다. "{prompt}"는 짧은 지시로 바뀐다.
 # command가 없으면 수동: 러너가 워크스페이스 경로를 알려 주고 제출을 기다린다.
@@ -24,22 +24,22 @@ teams:
     command: [claude, -p, "{prompt}", --model, claude-fable-5-1, --permission-mode, acceptEdits, --allowedTools, "Bash(./f1sim:*)", "Bash(python3:*)", "Bash(node:*)"]
 
   # ── Codex CLI ───────────────────────────────────────────────────────
-  # TODO: -m 값을 Codex에서 쓰는 실제 모델 이름으로 (astra / sol / terra). 워크스페이스는 git 저장소가 아니라 --skip-git-repo-check.
+  # 워크스페이스는 git 저장소가 아니라 --skip-git-repo-check.
   - team: astra
     agent: coding
     label: codex
-    model: astra
-    command: [codex, exec, -m, astra, -s, workspace-write, --skip-git-repo-check, "{prompt}"]
+    model: gpt-6-astra
+    command: [codex, exec, -m, gpt-6-astra, -s, workspace-write, --skip-git-repo-check, "{prompt}"]
   - team: sol
     agent: coding
     label: codex
-    model: sol
-    command: [codex, exec, -m, sol, -s, workspace-write, --skip-git-repo-check, "{prompt}"]
+    model: gpt-6.1-sol
+    command: [codex, exec, -m, gpt-6.1-sol, -s, workspace-write, --skip-git-repo-check, "{prompt}"]
   - team: terra
     agent: coding
     label: codex
-    model: terra
-    command: [codex, exec, -m, terra, -s, workspace-write, --skip-git-repo-check, "{prompt}"]
+    model: gpt-6.1-terra
+    command: [codex, exec, -m, gpt-6.1-terra, -s, workspace-write, --skip-git-repo-check, "{prompt}"]
 
   # ── Cursor: Grok 4.7 (수동) ─────────────────────────────────────────
   # 러너가 경로를 출력하면 Cursor에서 그 폴더를 열고, Agent 채팅에서 Grok 4.7을 고른 뒤 지시 문장을 보낸다.
@@ -49,13 +49,19 @@ teams:
     label: cursor
     model: grok-4.7
 
-  # ── OpenCode: DeepSeek V4.1 Flash (헤드리스) ──────────────────────────
-  # TODO: -m 값을 `opencode models`에 나오는 provider/model 이름으로. 비대화 모드라 OpenCode 설정에서 bash·edit을 허용해 둘 것.
+  # ── OpenCode: DeepSeek V4.1 Flash, GLM-5.3 Flash (헤드리스) ─────────────
+  # 모델은 OpenCode Zen(opencode/…)으로. 다른 프로바이더를 쓰면 -m만 바꾼다 (예: zai/glm-5.3-flash).
+  # 비대화 모드라 OpenCode 설정에서 bash·edit을 허용해 둘 것.
   - team: deepseek
     agent: coding
     label: opencode
     model: deepseek-v4.1-flash
-    command: [opencode, run, -m, deepseek/deepseek-v4.1-flash, "{prompt}"]
+    command: [opencode, run, -m, opencode/deepseek-v4.1-flash, "{prompt}"]
+  - team: glm
+    agent: coding
+    label: opencode
+    model: glm-5.3-flash
+    command: [opencode, run, -m, opencode/glm-5.3-flash, "{prompt}"]
 
   # ── Antigravity: Gemini 3.8 Flash (수동) ─────────────────────────────
   # 러너가 경로를 출력하면 Antigravity에서 그 폴더를 열고, 에이전트 대화에서 Gemini 3.8 Flash를 고른 뒤 지시 문장을 보낸다.

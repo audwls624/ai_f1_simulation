@@ -2,7 +2,8 @@
  * 러너 CLI. `pnpm -F @f1sim/runner <command>`.
  *   race    [--gp 7] [--teams 10] [--seed 2026] [--out <dir>]   휴리스틱 팀으로 GP 하나 (프리시즌 설계 → 플랜 → 레이스)
  *   season  [--teams 10] [--seed 2026] [--out <dir>]             휴리스틱 팀으로 시즌 전체 (24전)
- *           [--teams-file <teams.yaml>] [--workspaces <dir>] [--gps <n>] [--concurrency <n>]
+ *           [--teams-file <teams.yaml>] [--workspaces <dir>] [--tracks a,b] [--gps <n>] [--concurrency <n>]
+ *                                                               --tracks: 캘린더 대신 이 트랙들로 (예: spa — 시험용)
  *                                                               팀 파일: 코딩 에이전트 팀 (헤드리스/수동) + 휴리스틱. --gps는 앞 n전만 (시험용)
  *   replay  <race.json> [--every 10]                             텍스트 리플레이 + 전략 트레이스
  *   golden  [--update] [--teams 10] [--seed 2026]                골든 로그 대조 (--update: 휴리스틱 시즌으로 다시 만든다)
@@ -13,7 +14,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { RaceLogSchema, type AgentIOLog, type CarSpec } from '@f1sim/core';
-import { DATA_DIR, loadRegulations, loadSeasonTracks } from '@f1sim/harness';
+import { DATA_DIR, loadRegulations, loadSeasonTracks, loadTrack } from '@f1sim/harness';
 import { agentFiles, checkGolden, goldenDir, heuristicTeams, recordGolden, seasonFiles } from './golden.js';
 import { gpDir, preseasonDesign, runGP, runSeason, type Team } from './orchestrate.js';
 import { buildTeams, parseTeamsFile } from './teams.js';
@@ -73,11 +74,14 @@ async function season(args: string[]): Promise<void> {
       'teams-file': { type: 'string' },
       workspaces: { type: 'string' },
       gps: { type: 'string' },
+      tracks: { type: 'string' },
       concurrency: { type: 'string' },
     },
   });
   const regs = loadRegulations(SEASON);
-  const fullCalendar = loadSeasonTracks(SEASON, regs);
+  const fullCalendar = values.tracks
+    ? values.tracks.split(',').map((id) => loadTrack(id.trim(), regs))
+    : loadSeasonTracks(SEASON, regs);
   const calendar = values.gps !== undefined ? fullCalendar.slice(0, Number(values.gps)) : fullCalendar;
   const seed = Number(values.seed);
   const started = performance.now();

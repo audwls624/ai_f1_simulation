@@ -1,0 +1,18 @@
+# spa — Circuit de Spa-Francorchamps (벨기에). 실제 서킷 (센터라인: spa.csv, 출처·라이선스: NOTICE.md).
+# 출발선은 피트 직선, La Source 헤어핀 약 360 m 앞. 시계 방향.
+# 레이스 성격 값은 실제 서킷을 따른 출발값 — 전부 TODO(balance).
+id: spa
+laps: 44                         # 실제 F1 레이스 랩 수
+pit_loss_s: 19                   # TODO(balance)
+pit_entry_m: 6700                # 버스 스톱 시케인 앞
+pit_exit_m: 500                  # La Source 뒤
+drs_zones:
+  - { from_m: 1350, to_m: 2380 } # 케멜 직선 (Raidillon 뒤 → Les Combes)
+  - { from_m: 6860, to_m: 7000 } # 피트 직선 (버스 스톱 뒤 → 출발선)
+  - { from_m: 0, to_m: 340 }     # 피트 직선 (출발선 → La Source)
+sc_rate: 0.004                   # TODO(balance): 랩당 (M4 조정 수준)
+abrasiveness: 0.6                # TODO(balance): 고속·고부하 코너가 많다
+bumpiness: 0.25                  # TODO(balance)
+temp_mean: 19                    # TODO(balance): 8월 아르덴
+temp_sd: 5
+rain_base_prob: 0.45             # TODO(balance): 비로 유명한 서킷 (레이스 단위 확률)

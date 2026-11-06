@@ -29,7 +29,8 @@ pnpm install · pnpm test · pnpm lint · pnpm -F @f1sim/core build
 하네스 전략: pnpm -F @f1sim/harness strategy (12절 지표 4–6, 약 3–4분)
 러너: pnpm -F @f1sim/runner race --gp 7 (휴리스틱 10팀 GP → runs/) · season · replay <race.json> · golden [--update] (골든 로그 대조/재생성. 규정·모델·트랙·엔진을 바꾸면 --update)
 코딩 에이전트 팀: pnpm -F @f1sim/runner season --teams-file teams.example.yaml [--gps 1] [--concurrency N] (팀 파일: 헤드리스 command 또는 수동, 워크스페이스는 레포 밖. 운영 안내 docs/CODING-AGENTS.md)
-뷰어: pnpm -F @f1sim/web dev (http://localhost:5173, runs/의 레이스를 2D로 재생)
+뷰어: pnpm viewer (= pnpm -F @f1sim/web dev, http://localhost:5173, runs/의 레이스를 2D로 재생)
+시합: pnpm race [--tracks spa] (= runner season --teams-file teams.example.yaml)
 
 ## 하지 말 것
 - core에 I/O, 로깅, console.

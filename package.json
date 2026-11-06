@@ -11,6 +11,8 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
+    "race": "pnpm -F @f1sim/runner season --teams-file teams.example.yaml",
+    "viewer": "pnpm -F @f1sim/web dev",
     "lint": "eslint . --max-warnings=0 && pnpm run typecheck",
     "typecheck": "tsc -p tsconfig.json && pnpm -r typecheck",
     "build": "pnpm -r build"

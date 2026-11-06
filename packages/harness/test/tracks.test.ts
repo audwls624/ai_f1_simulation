@@ -1,6 +1,6 @@
 import { profile, type TrackProfile } from '@f1sim/core';
 import { describe, expect, it } from 'vitest';
-import { listTrackIds, loadCalendar, loadRegulations, loadSeasonTracks } from '../src/data.js';
+import { listTrackIds, loadCalendar, loadRegulations, loadSeasonTracks, loadTrack } from '../src/data.js';
 import { TRACK_BRIEFS } from '../src/track-briefs.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -21,7 +21,15 @@ describe('2026 calendar (DESIGN.md §2, §12 checklist 1)', () => {
     const calendar = loadCalendar(2026);
     expect(calendar.gps).toHaveLength(24);
     expect(new Set(calendar.gps).size).toBe(24);
-    expect(listTrackIds()).toEqual([...calendar.gps].sort());
+    // data/tracks에는 캘린더 밖 트랙도 있다 (실제 서킷 spa — --tracks로 시험 레이스용).
+    for (const id of calendar.gps) expect(listTrackIds()).toContain(id);
+  });
+
+  it('the real circuit spa (TUMFTM centerline) loads with its real length and race distance', () => {
+    const spa = loadTrack('spa', regs);
+    expect(spa.length_m / 1000).toBeCloseTo(7.0, 1);
+    expect(spa.laps).toBe(44);
+    expect(spa.segments.filter((x) => x.kind === 'corner' && x.class === 'low').length).toBeGreaterThanOrEqual(2); // La Source, 버스 스톱
   });
 
   it('spreads straight ratio, corner mix, abrasiveness and temperature', () => {

@@ -203,6 +203,6 @@ describe('teams file', () => {
     expect(() => parseTeamsFile('teams:\n  - { team: a, agent: heuristic }\n  - { team: a, agent: heuristic }\n')).toThrow(/appears twice/);
     expect(() => parseTeamsFile('teams:\n  - { team: a, agent: robot }\n  - { team: b, agent: heuristic }\n')).toThrow();
     const example = parseTeamsFile(readFileSync(fileURLToPath(new URL('../teams.example.yaml', import.meta.url)), 'utf8'));
-    expect(example.teams).toHaveLength(10);
+    expect(example.teams.length).toBeGreaterThanOrEqual(10);
   });
 });

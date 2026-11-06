@@ -23,15 +23,16 @@ You are team "<팀>" in the f1sim racing game, and the current directory is your
 | opus | Claude Code | claude-opus-5-5 | 헤드리스 |
 | sonnet | Claude Code | claude-sonnet-5-5 | 헤드리스 |
 | fable | Claude Code | claude-fable-5-1 | 헤드리스 |
-| astra | Codex CLI | astra (모델 이름 확인) | 헤드리스 |
-| sol | Codex CLI | sol (모델 이름 확인) | 헤드리스 |
-| terra | Codex CLI | terra (모델 이름 확인) | 헤드리스 |
+| astra | Codex CLI | gpt-6-astra | 헤드리스 |
+| sol | Codex CLI | gpt-6.1-sol | 헤드리스 |
+| terra | Codex CLI | gpt-6.1-terra | 헤드리스 |
 | grok | Cursor | Grok 4.7 | 수동 (IDE) |
-| deepseek | OpenCode | DeepSeek V4.1 Flash (provider/model 확인) | 헤드리스 |
+| deepseek | OpenCode | DeepSeek V4.1 Flash (`opencode/deepseek-v4.1-flash`) | 헤드리스 |
+| glm | OpenCode | GLM-5.3 Flash (`opencode/glm-5.3-flash`) | 헤드리스 |
 | flash | Antigravity | Gemini 3.8 Flash | 수동 (IDE) |
 | heuristic-01 | 휴리스틱 | — | 기준선 |
 
-같은 도구의 팀(opus·sonnet·fable, astra·sol·terra)은 레드불과 레이싱 불스처럼 별개 팀이다. 뷰어 색은 팀 파일 순서로 8팀까지 — 9번째 코딩 에이전트 팀(flash)과 휴리스틱은 회색에 약칭으로 구분한다. 포인트·순위·워크스페이스가 따로이고, 서로의 워크스페이스를 보면 안 된다.
+같은 도구의 팀(opus·sonnet·fable, astra·sol·terra)은 레드불과 레이싱 불스처럼 별개 팀이다. 뷰어 색은 팀 파일 순서로 8팀까지 — 9·10번째 코딩 에이전트 팀(glm, flash)과 휴리스틱은 회색에 약칭으로 구분한다. 포인트·순위·워크스페이스가 따로이고, 서로의 워크스페이스를 보면 안 된다.
 
 ## 도구별 준비
 
@@ -76,8 +77,8 @@ You are team "<팀>" in the f1sim racing game, and the current directory is your
 ## 실행
 
 ```bash
-# 시험: 1 GP (호출 2회 × 팀)
-pnpm -F @f1sim/runner season --teams-file teams.example.yaml --gps 1
+# 시험: 스파 1 GP (호출 2회 × 팀). 루트에서 pnpm race = pnpm -F @f1sim/runner season --teams-file teams.example.yaml
+pnpm race --tracks spa
 
 # 시즌 전체 (24전, 팀당 25회)
 pnpm -F @f1sim/runner season --teams-file teams.example.yaml
