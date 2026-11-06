@@ -48,14 +48,26 @@ export function strategyReport(run: StrategyRun, regs: Regulations, date: string
   lines.push(`| 5. 운 비중 | 순위 σ 평균 ${m.metric5.meanSd.toFixed(2)} (중앙값 ${m.metric5.medianSd.toFixed(2)}, ≤ 1.5인 칸 ${(m.metric5.shareOk * 100).toFixed(0)}%) | ≤ 1.5 | ${ok(m.metric5.pass)} |`);
   lines.push(`| 6. 폴백 빈도 | 레이스당 ${m.metric6.fallbacks.toFixed(2)}회 | < 1 | ${ok(m.metric6.pass)} |`);
   lines.push('');
-  const conditional = (label: string, keep: (x: (typeof run.samples)[number]) => boolean) => {
-    const s = run.samples.filter(keep);
-    return `| ${label} | ${((s.length / Math.max(1, races)) * 100).toFixed(0)}% | ${average(luck(s)).toFixed(2)} |`;
+  type Sample = (typeof run.samples)[number];
+  const conditional = (label: string, keep: (x: Sample) => boolean) => {
+    const cell = (all: readonly Sample[]) => {
+      const s = all.filter(keep);
+      return `${((s.length / Math.max(1, all.length)) * 100).toFixed(0)}% | ${average(luck(s)).toFixed(2)}`;
+    };
+    return `| ${label} | ${cell(run.samples)} | ${cell(run.baseline)} |`;
   };
-  lines.push('## 지표 5 분해: 어떤 레이스에서 순위가 흔들리나', '', '| 레이스 | 비율 | 순위 σ |', '| --- | --- | --- |');
+  lines.push(
+    '## 지표 5 분해: 어떤 레이스에서 순위가 흔들리나',
+    '',
+    '참고 열은 같은 스펙·같은 시드에서 10대 전원이 휴리스틱 플랜일 때 (스펙 × 트랙 칸마다 시드별 순위 σ). 지표 판정에는 안 쓴다.',
+    '',
+    '| 레이스 | 랜덤 플랜: 비율 | 순위 σ | 참고 — 휴리스틱 플랜: 비율 | 순위 σ |',
+    '| --- | --- | --- | --- | --- |',
+  );
   lines.push(conditional('전부', () => true));
   lines.push(conditional('세이프티카 없음', (x) => !x.sc));
   lines.push(conditional('비 없음', (x) => !x.rain));
+  lines.push(conditional('리타이어 없음', (x) => !x.anyDnf));
   lines.push(conditional('세이프티카·비·리타이어 없음', (x) => !x.sc && !x.rain && !x.anyDnf));
   lines.push('');
   lines.push('## 트랙별', '', '| 트랙 | 피트 손실 | 전략 분산 (중앙값) | 순위 σ | 폴백/레이스 | DNF | 피트/레이스 |', '| --- | --- | --- | --- | --- | --- | --- |');

@@ -31,6 +31,8 @@ export interface StrategyRun {
   /** plans[k] = { track 인덱스, 플랜 } (셋업은 스펙마다 그 스펙의 최적 셋업으로 바꿔 끼운다). */
   readonly plans: readonly { readonly track: number; readonly plan: GPPlan }[];
   readonly samples: readonly StrategySample[];
+  /** 참고용 기준선: 전원 휴리스틱 플랜, (스펙 × 트랙 × 시드), plan = -1. 지표 4–6에는 안 들어간다. */
+  readonly baseline: readonly StrategySample[];
 }
 
 export const DEFAULT_STRATEGY_TRACKS = ['fast-oval', 'mixed', 'tight-street', 'highland'] as const;
@@ -52,6 +54,7 @@ export async function runStrategyExploration(options: StrategyRunOptions): Promi
   const rng = makeRng(options.seed).spawn('strategy-plans');
   const plans: { track: number; plan: GPPlan }[] = [];
   const samples: StrategySample[] = [];
+  const baseline: StrategySample[] = [];
 
   for (let t = 0; t < tracks.length; t++) {
     const track = tracks[t] as Track;
@@ -68,22 +71,13 @@ export async function runStrategyExploration(options: StrategyRunOptions): Promi
     }));
     for (const p of trackPlans) plans.push({ track: t, plan: p.plan });
     const seeds = Array.from({ length: options.seeds }, (_, k) => deriveSeed(options.seed, `strategy:${track.id}:${k}`));
-    const parts = chunks(trackPlans, options.workers);
-    const results = await Promise.all(
-      parts.map((part) =>
-        runWorker<StrategySample[]>(import.meta.url, 'strategy-worker', {
-          season: options.season,
-          trackId: track.id,
-          trackIndex: t,
-          specs,
-          setups,
-          rivalPlans,
-          plans: part,
-          seeds,
-        }),
-      ),
-    );
+    const job = { season: options.season, trackId: track.id, trackIndex: t, specs, setups, rivalPlans, seeds };
+    const [base, ...results] = await Promise.all([
+      runWorker<StrategySample[]>(import.meta.url, 'strategy-worker', { ...job, plans: [], baseline: true }),
+      ...chunks(trackPlans, options.workers).map((part) => runWorker<StrategySample[]>(import.meta.url, 'strategy-worker', { ...job, plans: part })),
+    ]);
+    baseline.push(...(base ?? []));
     for (const r of results) samples.push(...r);
   }
-  return { options, tracks, specs, plans, samples };
+  return { options, tracks, specs, plans, samples, baseline };
 }

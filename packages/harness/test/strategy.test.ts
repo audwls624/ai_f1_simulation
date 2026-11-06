@@ -89,6 +89,9 @@ describe('runStrategyExploration', () => {
     const threaded = await runStrategyExploration({ ...opts, workers: 2 });
     expect(threaded.samples).toEqual(inline.samples);
     expect(inline.samples).toHaveLength(opts.plans * opts.specCount * opts.seeds);
+    expect(threaded.baseline).toEqual(inline.baseline);
+    expect(inline.baseline).toHaveLength(opts.trackIds.length * opts.specCount * opts.seeds);
+    expect(inline.baseline.every((s) => s.plan === -1)).toBe(true);
     const m = strategyMetrics(inline);
     expect(Number.isFinite(m.metric5.meanSd)).toBe(true);
     expect(m.metric6.pass).toBe(m.metric6.fallbacks < STRATEGY_CRITERIA.maxFallbacksPerRace);
