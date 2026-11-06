@@ -61,7 +61,7 @@ You are team "<팀>" in the f1sim racing game, and the current directory is your
 - 터미널 명령 실행이 매번 승인 대기면 `./f1sim` 실행을 자동으로 허용하는 쪽으로 바꾼다 (설정 이름은 버전마다 다를 수 있다).
 - 같은 모델을 헤드리스로 돌리고 싶으면 Gemini CLI 항목을 쓴다.
 
-**OpenCode** (`opencode`) — 헤드리스.
+**OpenCode** (`opencode`) — 헤드리스. 명령줄용 `opencode`가 동작해야 한다 — 데스크톱 앱(`OpenCode.app`)만으로는 러너가 띄울 수 없다 (그때는 Cursor처럼 수동으로). 첫 스파 시험에서 이 머신의 `~/.opencode/bin/opencode`(2026-01 설치본)는 아무 출력 없이 바로 끝났다.
 - `command: [opencode, run, -m, <provider/model>, "{prompt}"]` (예: xAI 모델이면 `xai/<모델>`). 비대화 모드에서 셸·편집 권한 확인이 막히지 않도록 OpenCode 설정에서 이 워크스페이스의 bash·edit을 허용한다.
 - 이 머신의 opencode는 비TTY에서 도움말을 출력하지 않아 플래그를 확인하지 못했다 — 1GP 시험으로 확인.
 

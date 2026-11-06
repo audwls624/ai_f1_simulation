@@ -26,6 +26,8 @@ You work with one command, \`./f1sim\`:
 ./f1sim submit plan.json
 \`\`\`
 
+Run commands from this directory exactly in these forms (\`./f1sim …\`, \`python3 your_script.py\`, \`node your_script.mjs\`). Some agents only permit these forms, so avoid \`cd … &&\`, chaining commands with \`&&\` or \`;\`, and environment-variable prefixes; create folders and files with your file tools instead.
+
 Arguments take a file path or inline JSON. Results are JSON on stdout. Budgets are counted by the runner: a run over budget is refused and changes nothing; invalid input is refused without using a run. \`./f1sim status\` shows the budget and the seconds left in this call. \`submit\` validates immediately. If it is rejected you see the error list and may submit once more; if that also fails, the defaults in \`rules.fallback\` are used (for the car spec, also a back-of-the-grid start in GP 1). Calls that run past the time limit (\`rules.penalties.response_timeout_s\`) count as failed. Once a submission is accepted the tools close; update your notes if you keep any, then stop.
 
 This directory is yours for the whole season: keep notes, scripts and data here if they help later calls. Work only inside it — other teams' directories and the engine's source code are off limits. The engine's internal coefficients are not public; you learn how the car behaves only through the tools.
