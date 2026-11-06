@@ -1,0 +1,28 @@
+# 2026 캘린더 (2절: 프리시즌에 규정과 함께 공개). 24전, 순서 = GP 번호.
+# 기온이 대략 계절을 따르도록 (초반·후반 서늘, 중반 더움) 배치했다. TODO(balance)
+season: 2026
+gps:
+  - lakeside
+  - desert-sweep
+  - oasis
+  - pinewood
+  - harbour-street
+  - canyon
+  - mixed
+  - tight-street
+  - vineyard
+  - coastal
+  - forest-ring
+  - airfield
+  - hillside
+  - plateau
+  - fast-oval
+  - quarry
+  - marina
+  - riverside-night
+  - sunset-boulevard
+  - old-town
+  - stadium-loop
+  - river-park
+  - highland
+  - glacier

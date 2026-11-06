@@ -5,6 +5,8 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseRegulations, parseTrack, parseTrackMeta, type Regulations, type Track } from '@f1sim/core';
+import { parse as parseYaml } from 'yaml';
+import { z } from 'zod';
 
 /** 레포의 data/ 디렉터리. */
 export const DATA_DIR = fileURLToPath(new URL('../../../data/', import.meta.url));
@@ -26,4 +28,27 @@ export function listTrackIds(dataDir = DATA_DIR): string[] {
     .filter((f) => f.endsWith('.yaml'))
     .map((f) => f.slice(0, -'.yaml'.length))
     .sort();
+}
+
+/** 시즌 캘린더 (2절). season.ts(M4)가 생기면 스키마는 core로 옮긴다. */
+export const CalendarSchema = z.strictObject({
+  season: z.int(),
+  gps: z.array(z.string()).min(1),
+});
+export type Calendar = z.infer<typeof CalendarSchema>;
+
+export function loadCalendar(season: number, dataDir = DATA_DIR): Calendar {
+  const calendar = CalendarSchema.parse(parseYaml(readFileSync(join(dataDir, 'calendar', `${season}.yaml`), 'utf8')));
+  if (calendar.season !== season) throw new Error(`calendar/${season}.yaml says season ${calendar.season}`);
+  const seen = new Set<string>();
+  for (const id of calendar.gps) {
+    if (seen.has(id)) throw new Error(`calendar/${season}.yaml lists "${id}" twice`);
+    seen.add(id);
+  }
+  return calendar;
+}
+
+/** 캘린더 순서대로 트랙을 읽는다. */
+export function loadSeasonTracks(season: number, regs: Regulations, dataDir = DATA_DIR): Track[] {
+  return loadCalendar(season, dataDir).gps.map((id) => loadTrack(id, regs, dataDir));
 }
