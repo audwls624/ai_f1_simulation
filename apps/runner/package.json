@@ -11,10 +11,18 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "race": "tsx --conditions=@f1sim/source src/cli.ts race",
+    "replay": "tsx --conditions=@f1sim/source src/cli.ts replay"
   },
-  "dependencies": { "@f1sim/agents": "workspace:*", "@f1sim/core": "workspace:*" }
+  "dependencies": {
+    "@f1sim/agents": "workspace:*",
+    "@f1sim/core": "workspace:*",
+    "@f1sim/harness": "workspace:*"
+  }
 }

@@ -18,7 +18,7 @@ AI 모델(나중에는 사람)이 팀이 되어 같은 규정으로 차를 설�
 - 공개 API나 스키마를 바꾸면 docs/DESIGN.md의 해당 절도 같이 수정.
 
 ## 작업 방식
-- 마일스톤 단위 (DESIGN.md 13절). 현재: M2.
+- 마일스톤 단위 (DESIGN.md 13절). 현재: M3 완료, 다음 M4.
 - 모듈마다 테스트를 함께. pnpm test와 pnpm lint가 통과하기 전에는 완료 아님.
 - 모르는 값은 추측하지 말고 yaml에 기본값 + `// TODO(balance)` 주석. 하네스가 조정한다.
 - 작업 끝에 3–5줄로: 무엇을 만들었나, 문서와 달라진 점, 다음 세션 제안.
@@ -26,6 +26,7 @@ AI 모델(나중에는 사람)이 팀이 되어 같은 규정으로 차를 설�
 ## 명령
 pnpm install · pnpm test · pnpm lint · pnpm -F @f1sim/core build
 하네스: pnpm -F @f1sim/harness design (12절 설계 탐색 → packages/harness/reports/) · pnpm -F @f1sim/harness gen-tracks
+러너: pnpm -F @f1sim/runner race --gp 7 (휴리스틱 10팀 GP → runs/) · pnpm -F @f1sim/runner replay <race.json>
 
 ## 하지 말 것
 - core에 I/O, 로깅, console.

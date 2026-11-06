@@ -47,6 +47,9 @@ importers:
       '@f1sim/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@f1sim/harness':
+        specifier: workspace:*
+        version: link:../../packages/harness
 
   packages/agents:
     dependencies:
