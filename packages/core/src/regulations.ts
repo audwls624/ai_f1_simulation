@@ -12,8 +12,10 @@ import {
   PhilosophySchema,
   RideHeightSchema,
   SPEC_PARAMS,
+  SetupSchema,
   WheelbaseSchema,
   type CarSpec,
+  type Setup,
 } from './car.js';
 
 // ── 결과 타입 (16절) ───────────────────────────────────────────────────
@@ -116,6 +118,7 @@ const CarModelSchema = z.strictObject({
   aero: z.strictObject({
     downforce_area_m2: pairOf(positive),
     drag_area_m2: pairOf(positive),
+    downforce_curve_exponent: positive,
     drag_curve_exponent: positive,
     aero_grip_mu: positive,
     efficiency_drag_cut: z.number().min(0).lt(1),
@@ -164,8 +167,12 @@ export const RegulationsSchema = z
       weight_reduction_span_kg: nonNegative,
     }),
     tools: z.strictObject({
-      wind_tunnel_runs_preseason: count,
-      strategy_sim_runs_per_gp: count,
+      wind_tunnel: z.strictObject({
+        runs_preseason: count,
+        noise_sd_s: nonNegative,
+        wear_compound: CompoundSchema,
+      }),
+      strategy_sim: z.strictObject({ runs_per_gp: count }),
     }),
     points: z.array(nonNegative).min(1),
     penalties: z.strictObject({
@@ -186,6 +193,7 @@ export const RegulationsSchema = z
       }),
       downforce_wear_relief: fraction,
       dirty_air_wear: nonNegative,
+      compound_warmup_penalty_s: nonNegative,
     }),
     pace_modes: z.record(PaceModeSchema, PaceModeRulesSchema),
     fuel: z.strictObject({
@@ -196,6 +204,15 @@ export const RegulationsSchema = z
       noise_sd_s: nonNegative,
       surface_grip: z.record(SurfaceSchema, positive),
       straight_step_m: positive,
+      braking_decel_m_s2: positive,
+      traction_share: fraction,
+      dirty_air: z.strictObject({ gap_s: positive, corner_time_factor: nonNegative }),
+    }),
+    track: z.strictObject({
+      resample_step_m: positive,
+      straight_max_curvature: positive,
+      corner_classes: z.strictObject({ low_max_radius_m: positive, mid_max_radius_m: positive }),
+      overtake_reference_straight_m: positive,
     }),
     physics: z.strictObject({
       gravity_m_s2: positive,
@@ -227,6 +244,14 @@ export const RegulationsSchema = z
         message: `cannot require more than ${DRY_COMPOUNDS.length} dry compounds`,
       });
     }
+    const classes = r.track.corner_classes;
+    if (classes.mid_max_radius_m <= classes.low_max_radius_m) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['track', 'corner_classes', 'mid_max_radius_m'],
+        message: 'must be larger than low_max_radius_m',
+      });
+    }
     if (r.car.cooling.full_cooling_at_c <= r.car.cooling.derate_from_c) {
       ctx.addIssue({
         code: 'custom',
@@ -248,16 +273,24 @@ export class RegulationsError extends Error {
   }
 }
 
-/** yaml 텍스트 → 검증된 Regulations. 잘못되면 모든 문제를 담은 RegulationsError를 던진다. */
-export function parseRegulations(yamlText: string): Regulations {
-  // parse()는 경고를 console/process로 내보내므로 쓰지 않는다. logLevel 'error'면 toJS()도 조용하다.
+/**
+ * @internal yaml 텍스트 → JS 값. 문법 오류·경고(중복 키 등)는 issue로 돌려준다.
+ * yaml의 parse()는 경고를 console/process로 내보내므로 쓰지 않는다. logLevel 'error'면 toJS()도 조용하다.
+ */
+export function yamlToJs(yamlText: string): Result<unknown, ValidationIssue[]> {
   const doc = parseDocument(yamlText, { logLevel: 'error' });
   const problems = [...doc.errors, ...doc.warnings];
   if (problems.length > 0) {
-    throw new RegulationsError(problems.map((e) => ({ path: '', message: `YAML ${e.code}: ${e.message}` })));
+    return { ok: false, issues: problems.map((e) => ({ path: '', message: `YAML ${e.code}: ${e.message}` })) };
   }
-  const raw: unknown = doc.toJS();
-  const parsed = RegulationsSchema.safeParse(raw, { reportInput: true });
+  return { ok: true, value: doc.toJS() };
+}
+
+/** yaml 텍스트 → 검증된 Regulations. 잘못되면 모든 문제를 담은 RegulationsError를 던진다. */
+export function parseRegulations(yamlText: string): Regulations {
+  const raw = yamlToJs(yamlText);
+  if (!raw.ok) throw new RegulationsError(raw.issues);
+  const parsed = RegulationsSchema.safeParse(raw.value, { reportInput: true });
   if (!parsed.success) throw new RegulationsError(toIssues(parsed.error.issues, RegulationsSchema));
   return parsed.data;
 }
@@ -316,6 +349,12 @@ export function validateSpec(spec: unknown, regs: Regulations): Result<CarSpec, 
     return { ok: false, issues: [budgetIssue(parsed.data, total, regs.cost)] };
   }
   return { ok: true, value: parsed.data };
+}
+
+/** GP 셋업 검증 (4절 범위, 알 수 없는 필드 거부). */
+export function validateSetup(setup: unknown): Result<Setup, ValidationIssue[]> {
+  const parsed = SetupSchema.safeParse(setup, { reportInput: true });
+  return parsed.success ? { ok: true, value: parsed.data } : { ok: false, issues: toIssues(parsed.error.issues, SetupSchema) };
 }
 
 // ── zod 이슈 → 사람이 읽는 문장 ────────────────────────────────────────
@@ -408,7 +447,8 @@ function mismatch(expected: string, path: readonly PropertyKey[], input: unknown
     : `expected ${expected}, got ${show(input)}`;
 }
 
-function toIssues(issues: readonly ZodIssue[], root: z.core.$ZodType): ValidationIssue[] {
+/** @internal zod 이슈 → 사람이 읽는 ValidationIssue. root는 허용 필드 목록을 찾을 스키마. */
+export function toIssues(issues: readonly ZodIssue[], root: z.core.$ZodType): ValidationIssue[] {
   const out: ValidationIssue[] = [];
   for (const issue of issues) {
     const path = formatPath(issue.path);

@@ -32,10 +32,14 @@ limits:
   min_weight_kg: 798            # weight_reduction 1.0 = 최소 무게
   weight_reduction_span_kg: 30  # weight_reduction 0.0 = 최소 무게 + 30 kg
 
-# 3절: 횟수 자체가 규정 (ATR)
+# 3절: 횟수 자체가 규정 (ATR). 9절: 툴 결과 형식
 tools:
-  wind_tunnel_runs_preseason: 20
-  strategy_sim_runs_per_gp: 5
+  wind_tunnel:
+    runs_preseason: 20
+    noise_sd_s: 0.1             # 9절: 결과 랩타임 노이즈 N(0, 0.1 s)
+    wear_compound: medium       # 9절 "마모율 추정"을 보고할 기준 컴파운드 (normal 페이스, 깨끗한 공기)
+  strategy_sim:
+    runs_per_gp: 5
 
 # 3절: 1–10위. 패스티스트 랩 포인트 없음
 points: [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]
@@ -103,6 +107,7 @@ tires:
 
   downforce_wear_relief: 0.1    # 6절: 마모 × (1 − 0.1 · wing_level/10)
   dirty_air_wear: 0.1           # 6절: 마모 × (1 + 0.1 · dirty_air)
+  compound_warmup_penalty_s: 0.6  # TODO(balance): 컴파운드 워밍업 랩(표의 warmup_laps)마다 랩타임 +s
 
 # ── 6절: 페이스 모드 ────────────────────────────────────────────────────
 pace_modes:
@@ -118,8 +123,20 @@ fuel:
 # ── 6절: 랩타임 ─────────────────────────────────────────────────────────
 laptime:
   noise_sd_s: 0.12              # 레이스 랩 노이즈 σ (노이즈는 호출자가 rng로 만든다)
-  surface_grip: { dry: 1.0, damp: 0.8, wet: 0.65 }   # 노면별 μ 승수
+  surface_grip: { dry: 1.0, damp: 0.8, wet: 0.65 }   # 노면별 μ 승수 (코너·트랙션·제동 모두)
   straight_step_m: 5            # 직선 수치 적분 간격 Δs
+  braking_decel_m_s2: 40        # TODO(balance): 6절 "제동 감속도 상수" (약 4 g, 노면 승수 적용)
+  traction_share: 0.5           # TODO(balance): 6절 코너 출구 트랙션. 구동력 ≤ 이 비율 × μ_eff × 수직하중
+  dirty_air:                    # raceLap의 dirty_air(gap_ahead, dirty_air_loss)
+    gap_s: 1.0                  # 앞차와 이 간격 미만이면 더티 에어 (7절 추월 판정 갭과 같은 값)
+    corner_time_factor: 0.1     # TODO(balance): 손실률 1.0이면 코너 구간 시간 +10%
+
+# ── 5절: 트랙 세그먼트 파생 ─────────────────────────────────────────────
+track:
+  resample_step_m: 5            # 센터라인 호길이 재샘플링 간격
+  straight_max_curvature: 0.002 # TODO(balance): 곡률(1/m)이 이보다 작으면 직선 (반경 500 m 이상)
+  corner_classes: { low_max_radius_m: 50, mid_max_radius_m: 150 }   # 반경 < 50 저속, 50–150 중속, > 150 고속
+  overtake_reference_straight_m: 1500   # TODO(balance): overtake_difficulty = 1 − 최장 직선/이 값 (0–1로 자름)
 
 # 6절 식의 물리 상수
 physics:
@@ -156,6 +173,7 @@ car:
   aero:
     downforce_area_m2: [3.0, 5.0]             # TODO(balance): wing_level 0 → 10의 Cl·A
     drag_area_m2: [1.0, 1.6]                  # TODO(balance): wing_level 0 → 10의 Cd·A
+    downforce_curve_exponent: 0.6             # TODO(balance): < 1이면 윙을 올릴수록 다운포스 증가폭이 준다
     drag_curve_exponent: 1.5                  # TODO(balance): > 1이면 윙을 올릴수록 L/D 악화 (효율 곡선)
     aero_grip_mu: 1.5                         # TODO(balance): 다운포스 하중에 대한 타이어 마찰계수
     efficiency_drag_cut: 0.10                 # TODO(balance): aero_efficiency 1.0이면 같은 다운포스에서 드래그 −10%

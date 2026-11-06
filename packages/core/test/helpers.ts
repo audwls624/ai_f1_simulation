@@ -2,10 +2,31 @@ import { readFileSync } from 'node:fs';
 import fc from 'fast-check';
 import type { CarSpec, DeriveTrackInput, Setup } from '../src/car.js';
 import { parseRegulations, type Regulations } from '../src/regulations.js';
+import { parseTrack, parseTrackMeta, type Track } from '../src/track.js';
 
 export const REGS_PATH = new URL('../../../data/regulations/2026.yaml', import.meta.url);
 export const regsYaml = readFileSync(REGS_PATH, 'utf8');
 export const regs: Regulations = parseRegulations(regsYaml);
+
+/** M1 가상 서킷 (DESIGN.md 16절). */
+export const TRACK_IDS = ['fast-oval', 'mixed', 'tight-street'] as const;
+export type TrackId = (typeof TRACK_IDS)[number];
+
+export function trackFiles(id: string): { csv: string; yaml: string } {
+  const dir = new URL('../../../data/tracks/', import.meta.url);
+  return { csv: readFileSync(new URL(`${id}.csv`, dir), 'utf8'), yaml: readFileSync(new URL(`${id}.yaml`, dir), 'utf8') };
+}
+
+export function loadTrack(id: string): Track {
+  const { csv, yaml } = trackFiles(id);
+  return parseTrack(csv, parseTrackMeta(yaml), regs);
+}
+
+export const tracks: Record<TrackId, Track> = {
+  'fast-oval': loadTrack('fast-oval'),
+  mixed: loadTrack('mixed'),
+  'tight-street': loadTrack('tight-street'),
+};
 
 /** DESIGN.md 4절 제출 예시 그대로. */
 export const docExampleSpec: CarSpec = {

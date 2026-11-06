@@ -1,0 +1,15 @@
+# tight-street — 가상 시가지 서킷 (M1). 저속 코너 위주, 범피, 중간 마모. 센터라인은 tight-street.csv.
+# 값은 전부 TODO(balance): 서킷 특성 차이를 내기 위한 출발값.
+id: tight-street
+laps: 110
+pit_loss_s: 19
+pit_entry_m: 2145
+pit_exit_m: 150
+drs_zones:
+  - { from_m: 0, to_m: 200 }       # 메인 직선 (유일하게 긴 직선)
+sc_rate: 0.030
+abrasiveness: 0.50
+bumpiness: 0.80
+temp_mean: 24
+temp_sd: 4
+rain_base_prob: 0.15

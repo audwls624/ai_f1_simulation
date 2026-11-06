@@ -1,4 +1,4 @@
-// @f1sim/core 공개 API (DESIGN.md 16절). M1 세션 1: rng, regulations, car.
+// @f1sim/core 공개 API (DESIGN.md 16절). M1: rng, regulations, car, track, tires, laptime.
 export { makeRng, type Rng } from './rng.js';
 
 export {
@@ -11,6 +11,7 @@ export {
   cost,
   formatIssue,
   parseRegulations,
+  validateSetup,
   validateSpec,
   type Compound,
   type PaceMode,
@@ -43,3 +44,24 @@ export {
   type SpecParamKey,
   type Wheelbase,
 } from './car.js';
+
+export {
+  TrackError,
+  TrackMetaSchema,
+  TrackProfileSchema,
+  parseTrack,
+  parseTrackMeta,
+  profile,
+  type CornerClass,
+  type CornerSegment,
+  type Segment,
+  type StraightSegment,
+  type Track,
+  type TrackMeta,
+  type TrackProfile,
+  type TrackSample,
+} from './track.js';
+
+export { degradation, tireOffset, warmupPenalty, wearPerLap } from './tires.js';
+
+export { baseLap, inDirtyAir, raceLap, type LapBreakdown, type LapState } from './laptime.js';

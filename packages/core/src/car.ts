@@ -208,11 +208,16 @@ export function derive(
 
   const inst = instability(spec, setup, track, m.instability);
 
-  // 에어로: wing_level이 효율 곡선 위에서 다운포스·드래그를 같이 올린다. 드래그는 지수 > 1로 더 빨리 는다.
+  // 에어로: wing_level이 효율 곡선 위에서 다운포스·드래그를 같이 올린다.
+  // 다운포스는 지수 < 1로 점점 덜 늘고, 드래그는 지수 > 1로 점점 더 는다 → 윙의 한계 효율이 줄어든다.
   const rideHeight = m.aero.ride_height[ae.philosophy][setup.ride_height];
   const wheelbase = m.chassis.wheelbase[ch.wheelbase];
+  const [clAt0, clAt1] = m.aero.downforce_area_m2;
   const downforceArea =
-    lerp(m.aero.downforce_area_m2, wing) * rideHeight.downforce * wheelbase.downforce * inst.downforceMult;
+    (clAt0 + (clAt1 - clAt0) * wing ** m.aero.downforce_curve_exponent) *
+    rideHeight.downforce *
+    wheelbase.downforce *
+    inst.downforceMult;
   const [cdAt0, cdAt1] = m.aero.drag_area_m2;
   const dragArea =
     (cdAt0 + (cdAt1 - cdAt0) * wing ** m.aero.drag_curve_exponent) *

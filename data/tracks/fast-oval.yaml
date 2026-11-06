@@ -1,0 +1,17 @@
+# fast-oval — 가상 서킷 (M1). 긴 직선 + 고속 코너. 센터라인은 fast-oval.csv.
+# 값은 전부 TODO(balance): 서킷 특성 차이를 내기 위한 출발값.
+id: fast-oval
+laps: 66
+pit_loss_s: 23
+pit_entry_m: 4150
+pit_exit_m: 250
+drs_zones:
+  - { from_m: 3780, to_m: 4350 }   # 메인 직선 후반 (출발선 앞)
+  - { from_m: 0, to_m: 580 }       # 메인 직선 전반
+  - { from_m: 2470, to_m: 3000 }   # 백 스트레이트 후반
+sc_rate: 0.012
+abrasiveness: 0.35
+bumpiness: 0.15
+temp_mean: 27
+temp_sd: 5
+rain_base_prob: 0.10

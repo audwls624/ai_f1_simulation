@@ -593,7 +593,7 @@ TypeScript 모노레포로 간다. `packages/core`는 DOM도 Node API도 모르�
 ```
 f1sim/
   packages/
-    core/                    # 순수 엔진. 의존: zod만. window·fs·process·Math.random 금지 (eslint로 강제)
+    core/                    # 순수 엔진. 의존: zod, yaml(규정·트랙 메타 파싱). window·fs·process·Math.random 금지 (eslint로 강제)
       src/
         regulations.ts       #   Regulations 스키마, cost(), validateSpec(), validatePlan()
         car.ts               #   CarSpec, Setup, derive() -> DerivedPerf
@@ -766,7 +766,7 @@ export function makeRng(seed: number): Rng;
 export interface Rng {
   next(): number;                       // [0, 1)
   normal(mu: number, sd: number): number;
-  spawn(key: string): Rng;              // 독립 스트림. hash(state, key)
+  spawn(key: string): Rng;              // 독립 스트림. hash(부모의 생성 시점 상태, key) — 부모의 소비량과 무관, 부모 불변
 }
 
 // regulations.ts
@@ -774,28 +774,34 @@ export const RegulationsSchema: z.ZodType<Regulations>;
 export function parseRegulations(yamlText: string): Regulations;
 export function cost(spec: CarSpec, regs: Regulations): number;
 export function validateSpec(spec: unknown, regs: Regulations): Result<CarSpec, ValidationIssue[]>;
+export function validateSetup(setup: unknown): Result<Setup, ValidationIssue[]>;
 
 // car.ts
 export const CarSpecSchema, SetupSchema;
-export function derive(spec: CarSpec, setup: Setup, track: Track, regs: Regulations): DerivedPerf;
+export function derive(spec: CarSpec, setup: Setup, track: Track, regs: Regulations,
+                       airTempC = track.temp_mean): DerivedPerf;   // 레이스는 실현 기온을 넘긴다 (5절)
 
 // track.ts
-export function parseTrack(centerlineCsv: string, meta: TrackMeta): Track;  // 스플라인 → segments
-export function profile(track: Track): TrackProfile;                          // 5절 표의 필드
+export function parseTrackMeta(yamlText: string): TrackMeta;
+export function parseTrack(centerlineCsv: string, meta: TrackMeta, regs: Regulations): Track;  // 스플라인 → segments
+export function profile(track: Track): TrackProfile;                                          // 5절 표의 필드
 
 // tires.ts
 export function degradation(compound: Compound, life: number, regs: Regulations): number;  // s/lap
 export function wearPerLap(compound: Compound, perf: DerivedPerf, track: Track,
-                           pace: PaceMode, dirtyAir: boolean, regs: Regulations): number;
+                           pace: PaceMode, dirtyAir: boolean, surface: Surface, regs: Regulations): number;
+//   surface: inter·wet의 dry 노면 마모 승수 때문에 필요
 
 // laptime.ts
 export function baseLap(perf: DerivedPerf, track: Track, surface: Surface, regs: Regulations): LapBreakdown;
 //   LapBreakdown = { total: number; straight: number; lowSpeed: number; midSpeed: number; highSpeed: number; topSpeedKph: number }
+//   straight = 풀 스로틀 시간. low/mid/high = 그 등급 코너에 걸린 시간 (진입 제동 + 그립 한계 + 트랙션 한계 탈출)
 export function raceLap(base: LapBreakdown, state: LapState, regs: Regulations): number;  // 6절 식. 노이즈는 호출자가 rng로
 
 // agents/tools.ts
 export function makeDesignTools(regs, tracks, budget: number, rng: Rng): DesignTools;
 //   windTunnel(spec, setup, trackId) → { lap: LapBreakdown; wearEstimate: number; noiseSd: 0.1 }, remaining--; 0이면 throw
+//   잘못된 입력(스키마·코스트 캡·모르는 트랙)도 throw하되 횟수·난수는 쓰지 않는다
 ```
 
 `Result`는 `{ ok: true, value } | { ok: false, issues }`. `ValidationIssue`는 `{ path, message }`이고 message는 사람이 읽는 문장 (LLM 재제출과 사람 팀 UI가 같은 문자열을 본다).

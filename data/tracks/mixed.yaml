@@ -1,0 +1,17 @@
+# mixed — 가상 서킷 (M1). 저·중·고속 코너가 섞인 중간형. 센터라인은 mixed.csv.
+# 값은 전부 TODO(balance): 서킷 특성 차이를 내기 위한 출발값.
+id: mixed
+laps: 78
+pit_loss_s: 21
+pit_entry_m: 3400
+pit_exit_m: 200
+drs_zones:
+  - { from_m: 3200, to_m: 3550 }   # 메인 직선 후반
+  - { from_m: 0, to_m: 380 }       # 메인 직선 전반
+  - { from_m: 2210, to_m: 2520 }   # 백 스트레이트
+sc_rate: 0.015
+abrasiveness: 0.55
+bumpiness: 0.30
+temp_mean: 22
+temp_sd: 5
+rain_base_prob: 0.25
