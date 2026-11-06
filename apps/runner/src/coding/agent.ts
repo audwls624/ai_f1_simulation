@@ -261,7 +261,9 @@ export class CodingAgent implements TeamAgent {
       const prompt = headlessPrompt(spec.packet.team);
       const [bin, ...args] = command.map((a) => a.replaceAll('{prompt}', prompt));
       const log = openSync(join(this.#ipc, 'logs', `${String(this.#attempt).padStart(3, '0')}-${spec.key}.log`), 'a');
-      const child = spawn(bin ?? '', args, { cwd: this.#o.workspace, stdio: ['ignore', log, log] });
+      // PWD도 워크스페이스로: spawn은 cwd만 바꾸고 PWD는 부모 것을 물려준다. OpenCode는 PWD를 작업 디렉터리로 써서
+      // 워크스페이스를 바깥 폴더로 보고 권한을 거부했다 (첫 스파 시험).
+      const child = spawn(bin ?? '', args, { cwd: this.#o.workspace, env: { ...process.env, PWD: this.#o.workspace }, stdio: ['ignore', log, log] });
       closeSync(log);
       session.child = child;
       const done = () => {

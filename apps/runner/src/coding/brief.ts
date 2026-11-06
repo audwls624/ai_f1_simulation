@@ -110,6 +110,8 @@ export function designTask(packet: PreseasonPacket, errors?: readonly string[]):
     '2. Write your car spec to a JSON file and run `./f1sim submit <file>`.',
     '3. If it is rejected, fix every error and submit once more. Stop when it is accepted.',
     '',
+    'The call only counts once `./f1sim submit` prints `"accepted": true`. Saying you are done does not submit anything.',
+    '',
   ].join('\n');
 }
 
@@ -127,6 +129,8 @@ export function planTask(packet: GPPacket, errors?: readonly string[]): string {
     `1. Check plans with \`./f1sim strategy-sim\` (${packet.strategy_sim_remaining} runs).`,
     '2. Write your GPPlan to a JSON file and run `./f1sim submit <file>`.',
     '3. If it is rejected, fix every error and submit once more. Stop when it is accepted.',
+    '',
+    'The call only counts once `./f1sim submit` prints `"accepted": true`. Saying you are done does not submit anything.',
     '',
   ].join('\n');
 }

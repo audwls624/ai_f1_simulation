@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -54,6 +54,9 @@ describe('CodingAgent (DESIGN.md §9: coding agents in a team workspace)', () =>
     expect(status).toMatchObject({ call: 'design_car', wind_tunnel_remaining: regs.tools.wind_tunnel.runs_preseason, time_limit_s: regs.penalties.response_timeout_s });
     expect(status.seconds_left).toBeGreaterThan(regs.penalties.response_timeout_s - 30);
     expect(agent.takeReport()).toBeUndefined();
+    // PWD도 워크스페이스다 (OpenCode는 cwd가 아니라 PWD를 작업 디렉터리로 쓴다).
+    const env = JSON.parse(readFileSync(join(agent.workspace, 'env.json'), 'utf8')) as { pwd: string; cwd: string };
+    expect(realpathSync(env.pwd)).toBe(realpathSync(env.cwd));
   }, 30_000);
 
   it('passes the designCar conformance check', async () => {

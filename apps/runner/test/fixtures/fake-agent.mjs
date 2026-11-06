@@ -10,6 +10,7 @@ const rules = packet.rules;
 const preseason = Array.isArray(packet.calendar);
 
 writeFileSync('pid.txt', String(process.pid));
+writeFileSync('env.json', JSON.stringify({ pwd: process.env.PWD, cwd: process.cwd() }));
 if (mode === 'silent') process.exit(0);
 if (mode === 'slow') await new Promise((r) => setTimeout(r, 30_000));
 
