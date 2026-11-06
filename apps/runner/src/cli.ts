@@ -2,17 +2,22 @@
  * 러너 CLI. `pnpm -F @f1sim/runner <command>`.
  *   race    [--gp 7] [--teams 10] [--seed 2026] [--out <dir>]   휴리스틱 팀으로 GP 하나 (프리시즌 설계 → 플랜 → 레이스)
  *   season  [--teams 10] [--seed 2026] [--out <dir>]             휴리스틱 팀으로 시즌 전체 (24전)
+ *           [--teams-file <teams.yaml>] [--workspaces <dir>] [--gps <n>]
+ *                                                               팀 파일: 코딩 에이전트 팀 (헤드리스/수동) + 휴리스틱. --gps는 앞 n전만 (시험용)
  *   replay  <race.json> [--every 10]                             텍스트 리플레이 + 전략 트레이스
  *   golden  [--update] [--teams 10] [--seed 2026]                골든 로그 대조 (--update: 휴리스틱 시즌으로 다시 만든다)
  */
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { RaceLogSchema, type AgentIOLog, type CarSpec } from '@f1sim/core';
 import { DATA_DIR, loadRegulations, loadSeasonTracks } from '@f1sim/harness';
 import { agentFiles, checkGolden, goldenDir, heuristicTeams, recordGolden, seasonFiles } from './golden.js';
-import { gpDir, preseasonDesign, runGP, runSeason } from './orchestrate.js';
+import { gpDir, preseasonDesign, runGP, runSeason, type Team } from './orchestrate.js';
+import { buildTeams, parseTeamsFile } from './teams.js';
+import type { CodingAgent } from './coding/agent.js';
 import { formatRace } from './text.js';
 
 const SEASON = 2026;
@@ -61,20 +66,46 @@ async function race(args: string[]): Promise<void> {
 async function season(args: string[]): Promise<void> {
   const { values } = parseArgs({
     args,
-    options: { teams: { type: 'string', default: '10' }, seed: { type: 'string', default: String(SEASON) }, out: { type: 'string' } },
+    options: {
+      teams: { type: 'string', default: '10' },
+      seed: { type: 'string', default: String(SEASON) },
+      out: { type: 'string' },
+      'teams-file': { type: 'string' },
+      workspaces: { type: 'string' },
+      gps: { type: 'string' },
+    },
   });
   const regs = loadRegulations(SEASON);
-  const calendar = loadSeasonTracks(SEASON, regs);
+  const fullCalendar = loadSeasonTracks(SEASON, regs);
+  const calendar = values.gps !== undefined ? fullCalendar.slice(0, Number(values.gps)) : fullCalendar;
   const seed = Number(values.seed);
   const started = performance.now();
+  let teams: Team[];
+  let coding: CodingAgent[] = [];
+  if (values['teams-file']) {
+    const file = parseTeamsFile(readFileSync(values['teams-file'], 'utf8'));
+    // 레포 밖 (에이전트에게 가는 건 공개 규정뿐). 실행마다 새 디렉터리.
+    const workspaces = values.workspaces ?? join(tmpdir(), 'f1sim-workspaces', `${SEASON}-s${seed}-${Date.now().toString(36)}`);
+    ({ teams, coding } = buildTeams(file, workspaces, (m) => console.log(`  · ${m}`)));
+    if (coding.length > 0) console.log(`coding agent workspaces: ${workspaces}`);
+  } else {
+    teams = heuristicTeams(Number(values.teams));
+  }
+  const stop = () => {
+    for (const a of coding) a.dispose();
+  };
+  process.once('SIGINT', () => {
+    stop();
+    process.exit(130);
+  });
   const outcome = await runSeason({
     regs,
     season: SEASON,
     seed,
     calendar,
-    teams: heuristicTeams(Number(values.teams)),
+    teams,
     onGp: (gp, r) => console.log(`GP ${String(gp).padStart(2)} ${r.meta.track.padEnd(18)} winner ${r.result[0]?.team ?? '-'}`),
-  });
+  }).finally(stop);
   const dir = values.out ?? join(RUNS_DIR, `${SEASON}-s${seed}`);
   for (const [path, text] of [...seasonFiles(outcome), ...agentFiles(outcome)]) {
     mkdirSync(dirname(join(dir, path)), { recursive: true });

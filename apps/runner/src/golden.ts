@@ -22,7 +22,7 @@ export const GoldenManifestSchema = z.strictObject({
   node: z.string(),
   /** 입력 지문: 규정(공개+엔진 모델)과 캘린더 트랙. 다르면 해시가 어긋나는 게 정상이다 → 다시 만든다. */
   inputs: z.strictObject({ regulations: z.string(), tracks: z.string() }),
-  teams: z.array(z.strictObject({ team: z.string(), agent: z.string() })).min(1),
+  teams: z.array(z.strictObject({ team: z.string(), agent: z.string(), model: z.string().optional() })).min(1),
   files: z.array(z.strictObject({ path: z.string(), sha256: z.string().regex(/^[0-9a-f]{64}$/) })).min(1),
   standings: z.array(z.strictObject({ team: z.string(), points: z.number() })),
 });
@@ -60,7 +60,10 @@ export function inputFingerprint(regs: Regulations, calendar: readonly Track[]):
 }
 
 function replayTeams(manifest: GoldenManifest, jsonl: (team: string) => string): Team[] {
-  return manifest.teams.map((t) => ({ team: t.team, agent: ReplayAgent.fromJsonl(jsonl(t.team), t.agent) }));
+  return manifest.teams.map((t) => ({
+    team: t.team,
+    agent: ReplayAgent.fromJsonl(jsonl(t.team), { kind: t.agent, ...(t.model !== undefined ? { model: t.model } : {}) }),
+  }));
 }
 
 export interface GoldenCheck {
@@ -115,7 +118,7 @@ export async function recordGolden(args: {
     seed: args.seed,
     node: process.version,
     inputs: inputFingerprint(args.regs, args.calendar),
-    teams: outcome.log.teams.map((t) => ({ team: t.team, agent: t.agent })),
+    teams: outcome.log.teams.map((t) => ({ team: t.team, agent: t.agent, ...(t.model !== undefined ? { model: t.model } : {}) })),
     files: files.map(([path, text]) => ({ path, sha256: sha256(text) })),
     standings: outcome.log.standings.map((s) => ({ team: s.team, points: s.points })),
   };

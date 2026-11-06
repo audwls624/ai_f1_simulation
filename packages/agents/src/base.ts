@@ -85,9 +85,26 @@ export interface PlanTools {
   readonly remaining: number;
 }
 
+/** 9절 검증 파이프라인 4: 첫 제출이 검증에 실패하면 오케스트레이터가 오류 목록과 함께 한 번 더 부른다. */
+export interface Resubmission {
+  /** formatIssue 문자열 (사람 팀 UI와 같은 문구), 또는 응답 실패 사유. */
+  readonly errors: readonly string[];
+}
+
+/** 호출 한 번의 원문·토큰 (LLM 팀). AgentIOLog의 raw_response·tokens가 된다. */
+export interface CallReport {
+  readonly raw_response: string;
+  readonly tokens?: { readonly in: number; readonly out: number };
+}
+
 export interface TeamAgent {
   /** 에이전트 종류 (heuristic, replay, llm:anthropic …). SeasonLog에 남는다. */
   readonly kind: string;
-  designCar(packet: PreseasonPacket, tools: DesignTools): Promise<CarSpec>;
-  planGp(packet: GPPacket, tools: PlanTools): Promise<GPPlan>;
+  /** 모델 ID (LLM 팀). SeasonLog teams[].model. */
+  readonly model?: string;
+  /** resubmission이 있으면 재제출 호출이다 (같은 패킷·같은 툴 예산). */
+  designCar(packet: PreseasonPacket, tools: DesignTools, resubmission?: Resubmission): Promise<CarSpec>;
+  planGp(packet: GPPacket, tools: PlanTools, resubmission?: Resubmission): Promise<GPPlan>;
+  /** 직전 호출의 보고 (있으면). 오케스트레이터가 호출마다 한 번 읽는다 — 읽으면 비워진다. */
+  takeReport?(): CallReport | undefined;
 }

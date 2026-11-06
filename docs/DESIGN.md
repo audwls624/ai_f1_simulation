@@ -403,9 +403,15 @@ variants:                       # 예선 후 위에서부터 첫 매치, 마지�
 
 ```ts
 export interface TeamAgent {
-  designCar(packet: PreseasonPacket, tools: DesignTools): Promise<CarSpec>;
-  planGp(packet: GPPacket, tools: PlanTools): Promise<GPPlan>;
+  readonly kind: string;             // heuristic, replay, coding:<label> — SeasonLog에 남는다
+  readonly model?: string;           // SeasonLog teams[].model
+  // resubmission이 있으면 재제출 호출 (검증 오류 목록, 같은 패킷·같은 툴 예산)
+  designCar(packet: PreseasonPacket, tools: DesignTools, resubmission?: Resubmission): Promise<CarSpec>;
+  planGp(packet: GPPacket, tools: PlanTools, resubmission?: Resubmission): Promise<GPPlan>;
+  takeReport?(): CallReport | undefined;  // 직전 호출의 원문 응답(·토큰) → AgentIOLog
 }
+
+export interface Resubmission { readonly errors: readonly string[] }
 
 export interface DesignTools {
   windTunnel(spec: CarSpec, setup: Setup, trackId: string): WindTunnelResult;  // 예산 초과 시 throw
@@ -418,7 +424,17 @@ export interface PlanTools {
 }
 ```
 
-구현체: `LLMAgent(provider, model, prompts)`, `HeuristicAgent` (밸런스·기준선), `ReplayAgent` (로그에서 제출물 재생), `HumanAgent` (나중에, UI에서 값을 받아오는 어댑터). 사람 팀은 응답 제한 시간만 길게 잡으면 된다.
+구현체: `CodingAgent` (LLM 팀, 아래), `HeuristicAgent` (밸런스·기준선), `ReplayAgent` (로그에서 제출물 재생. 원래 에이전트의 kind·model을 넘기면 SeasonLog까지 원본과 같다), `HumanAgent` (나중에, UI에서 값을 받아오는 어댑터). 사람 팀은 응답 제한 시간만 길게 잡으면 된다.
+
+**LLM 팀 = 코딩 에이전트 (M5 결정)**
+
+LLM 팀은 provider API를 직접 부르지 않고, 각 모델의 코딩 에이전트(Cursor, Antigravity, OpenCode, Claude Code, Codex CLI 등)로 참가한다. 에이전트 루프·툴 사용·컨텍스트 관리는 각 제품의 것이고, 공통 측은 워크스페이스 프로토콜만 고정한다 (`apps/runner/src/coding/`).
+
+- 팀 워크스페이스 하나를 시즌 내내 쓴다 (기본: OS 임시 디렉터리 아래, 레포 밖). 러너가 쓰는 것: `BRIEF.md`(게임 설명 — 공개 문서의 정성적 내용, 모든 팀 동일), 호출마다 `TASK.md`와 `packet.json`, `schemas/`(zod에서 내보낸 JSON Schema), 툴 명령 `./f1sim`. 팀이 남긴 메모·스크립트는 다음 호출에도 남는다.
+- 툴은 `./f1sim status | wind-tunnel | strategy-sim | submit`. 명령은 요청을 `.f1sim/inbox/`에 파일로 쓰고 러너가 `.f1sim/outbox/`에 답한다 (네트워크가 막힌 샌드박스에서도 동작). 엔진 코드는 워크스페이스에 없고, 횟수는 러너 메모리의 DesignTools/PlanTools가 센다.
+- `submit`은 받는 즉시 같은 검증 함수로 확인해 결과(오류 목록)를 돌려준다. 첫 제출이 걸리면 같은 세션을 살려 둔 채 재제출을 받는다. 에이전트가 제출 없이 끝나거나 시간을 넘기면 오류 목록과 함께 새로 띄운다 (재제출 1회).
+- 팀마다 헤드리스(러너가 명령을 띄움, `{prompt}` 치환) 또는 수동(러너가 워크스페이스를 알려 주고 제출을 기다림). 팀 구성은 팀 파일 (`apps/runner/teams.example.yaml`).
+- 격리는 지시(“이 디렉터리 안에서만”)와 각 도구의 샌드박스 설정에 기댄다. 다른 팀 워크스페이스나 레포(엔진 모델 계수)를 읽지 못하게 강제하려면 컨테이너 격리가 필요하다 — 나중 단계.
 
 **정보 패킷 (모든 팀 동일)**
 
@@ -446,9 +462,9 @@ export interface PlanTools {
 
 오류 메시지는 사람이 읽어도 말이 되게 쓴다. LLM 재제출과 사람 팀 UI의 검증 메시지가 같은 문자열이다.
 
-**LLM 어댑터에 대한 제약 (공통 측에서 강제)**
+**LLM 팀에 대한 제약 (공통 측에서 강제)**
 
-- 동일 패킷 직렬화 (JSON), 동일 출력 스키마. 프롬프트 본문은 팀별로 다를 수 있지만 패킷과 스키마는 같다.
+- 동일 패킷 직렬화 (JSON), 동일 출력 스키마, 동일 BRIEF.md. 헤드리스 명령의 짧은 지시도 모든 팀이 같다.
 - 툴 호출 횟수는 공통 측이 세고 초과 시 오류 반환. 에이전트가 세지 않는다.
 - 모든 입출력과 툴 호출을 `AgentIOLog`에 기록 (10절). 나중에 "이 모델은 풍동을 어떻게 썼나"를 보는 재만도 여기서 나온다.
 
@@ -496,6 +512,8 @@ export interface PlanTools {
  "resubmission": {"raw_response": "...", "validation": {"ok": true}},
  "final": {...}, "latency_s": 41.2, "tokens": {"in": 8120, "out": 910}}
 ```
+
+코딩 에이전트 팀: `raw_response`는 제출한 파일 원문, `tokens`는 없다 (도구가 알려 주지 않는다). 에이전트 프로세스 출력은 워크스페이스 `.f1sim/logs/`에 남는다.
 
 이 로그가 있어야 `ReplayAgent`가 시즌을 LLM 호출 없이 재생할 수 있고, 모델 간 판단 스타일 비교(풍동을 몇 번 썼나, 재제출이 얼마나 있었나)가 가능하다.
 
@@ -629,14 +647,13 @@ f1sim/
         base.ts              #   TeamAgent, packets, DesignTools / PlanTools
         tools.ts             #   windTunnel(), strategySim() + 예산 강제
         heuristic.ts  replay.ts
-        llm/
-          base.ts            #   공통 직렬화, zod→JSON Schema, 재제출 루프
-          anthropic.ts  openai.ts  google.ts
-          prompts/<provider>/
         conformance/         #   어떤 어댑터든 통과해야 하는 테스트
     harness/                 # 밸런스 탐색 (Node worker_threads), 리포트
   apps/
-    runner/                  # 시즌 실행 CLI. API 키는 여기만
+    runner/                  # 시즌 실행 CLI
+      src/coding/            #   CodingAgent: 팀 워크스페이스, ./f1sim 요청 처리, 헤드리스/수동 (9절)
+      assets/f1sim-tool.mjs  #   워크스페이스에 복사되는 ./f1sim (파일 IPC만, 엔진 코드 없음)
+      teams.example.yaml     #   팀 파일: 코딩 에이전트 팀 + 휴리스틱 팀
       golden/<season>-s<seed>/  # 골든 로그 (11절): 제출물 + 출력 해시. 회귀 테스트가 재생해 대조
     web/                     # Vite + Three.js: 리플레이, 리더보드, 사람 팀 UI (나중에)
   data/
@@ -661,7 +678,7 @@ f1sim/
 | PRNG | xoshiro128\*\* 직접 구현 | Math.random은 시드 불가. 스트림 분리 필요 |
 | 테스트 | vitest + fast-check | 속성 테스트로 엔진 불변식 |
 | 린트 | eslint, core에 `no-restricted-globals` (window, document, process, fs, Date, Math.random) | 순수성 강제 |
-| LLM | provider 공식 SDK (또는 Vercel AI SDK로 통일) | 구조화 출력 |
+| LLM | 각 모델의 코딩 에이전트 (Cursor, Antigravity, OpenCode, Claude Code …) | 에이전트 루프는 제품 몫, 공통 측은 워크스페이스 프로토콜만 (M5 결정) |
 | 렌더러 | Three.js, Vite | M7 |
 
 Python은 분석 노트북에서 로그 JSON을 읽는 용도로만. 엔진에는 들어가지 않는다.
@@ -674,8 +691,8 @@ Python은 분석 노트북에서 로그 JSON을 읽는 용도로만. 엔진에�
 | M2 설계 밸런스 | harness 설계 탐색, heuristic 설계 | 24 트랙 프로파일, 12절 지표 1–3 통과 |
 | M3 레이스 엔진 | weather, strategy, qualifying, race, log + `agents/base`, heuristic 플랜, replay, conformance | 휴리스틱 10팀 레이스 1개, CLI 텍스트 리플레이, 전략 트레이스 출력 |
 | M4 전략 밸런스 | harness 전략 탐색, season | 지표 4–6 통과, 휴리스틱 시즌 1개, 골든 로그 |
-| M5 LLM 1개 | `agents/llm/anthropic`, `apps/runner` | Claude 1팀 + 휴리스틱 9팀 시즌, AgentIOLog, Replay 재현 일치 |
-| M6 멀티 provider | openai, google 어댑터 (Codex / Gemini CLI가 담당 가능) | conformance 통과, 설계대로 팀 구성 시즌 1개 |
+| M5 LLM 1개 | `apps/runner/src/coding` (코딩 에이전트 워크스페이스), 팀 파일 | 코딩 에이전트 1팀 + 휴리스틱 9팀 시즌, AgentIOLog, Replay 재현 일치 |
+| M6 멀티 모델 | 팀 파일에 코딩 에이전트 여러 개 (Cursor, Antigravity, OpenCode …) | 설계대로 팀 구성 시즌 1개 |
 | M7 웹 리플레이 | `apps/web` Three.js | race.json + samples로 3D 리플레이 |
 | M8 사람 팀 | HumanAgent + UI, 브라우저 내 strategySim | 사람 1팀이 시즌 참가 |
 

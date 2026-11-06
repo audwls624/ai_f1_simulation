@@ -9,6 +9,7 @@ import {
   makePlanTools,
   type DesignTools,
   type PlanTools,
+  type Resubmission,
   type Standing,
   type TeamAgent,
 } from '@f1sim/agents';
@@ -69,14 +70,35 @@ function recordPlanTools(tools: PlanTools, calls: ToolCall[]): PlanTools {
   };
 }
 
-async function timed<T>(work: () => Promise<T>): Promise<{ value: unknown; error: string | null; latency: number }> {
+const MS_PER_S = 1000;
+
+/** 응답 제한 시간(2·3절: 초과는 검증 실패와 같다) 안에서 한 번 부른다. */
+async function timed<T>(work: () => Promise<T>, timeoutS: number): Promise<{ value: unknown; error: string | null; latency: number }> {
   const t0 = performance.now();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`no response within ${timeoutS} s`)), timeoutS * MS_PER_S);
+  });
   try {
-    const value = await work();
-    return { value, error: null, latency: (performance.now() - t0) / 1000 };
+    const value = await Promise.race([work(), timeout]);
+    return { value, error: null, latency: (performance.now() - t0) / MS_PER_S };
   } catch (e) {
-    return { value: null, error: e instanceof Error ? e.message : String(e), latency: (performance.now() - t0) / 1000 };
+    return { value: null, error: e instanceof Error ? e.message : String(e), latency: (performance.now() - t0) / MS_PER_S };
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+/** AgentIOLog 한 호출분: 원문(에이전트 보고가 있으면 그것), 토큰 합. */
+function rawOf(agent: TeamAgent, value: unknown): { raw: string; tokens?: { in: number; out: number } } {
+  const report = agent.takeReport?.();
+  return { raw: report?.raw_response ?? JSON.stringify(value ?? null), ...(report?.tokens ? { tokens: { ...report.tokens } } : {}) };
+}
+
+function sumTokens(...ts: ({ in: number; out: number } | undefined)[]): { in: number; out: number } | undefined {
+  const present = ts.filter((t): t is { in: number; out: number } => t !== undefined);
+  if (present.length === 0) return undefined;
+  return { in: present.reduce((s, t) => s + t.in, 0), out: present.reduce((s, t) => s + t.out, 0) };
 }
 
 export interface DesignOutcome {
@@ -94,18 +116,20 @@ export async function preseasonDesign(regs: Regulations, team: Team, calendar: r
     makeDesignTools(regs, calendar, regs.tools.wind_tunnel.runs_preseason, makeRng(deriveSeed(seasonSeed, `tool:wind_tunnel:${team.team}`))),
     calls,
   );
-  const attempt = async () => {
-    const r = await timed(() => team.agent.designCar(packet, tools));
+  const attempt = async (resubmit?: Resubmission) => {
+    const r = await timed(() => team.agent.designCar(packet, tools, resubmit), regs.penalties.response_timeout_s);
+    const out = rawOf(team.agent, r.value);
     const checked = r.error === null ? validateSpec(r.value, regs) : null;
-    return { r, checked, errors: r.error !== null ? [r.error] : checked && !checked.ok ? checked.issues.map(formatIssue) : [] };
+    return { r, out, checked, errors: r.error !== null ? [r.error] : checked && !checked.ok ? checked.issues.map(formatIssue) : [] };
   };
   const first = await attempt();
   let final = first;
   let resubmission: AgentIOLog['resubmission'];
   if (first.errors.length > 0 && regs.penalties.resubmissions > 0) {
-    final = await attempt();
-    resubmission = { raw_response: JSON.stringify(final.r.value ?? null), validation: { ok: final.errors.length === 0, ...(final.errors.length ? { errors: final.errors } : {}) } };
+    final = await attempt({ errors: first.errors });
+    resubmission = { raw_response: final.out.raw, validation: { ok: final.errors.length === 0, ...(final.errors.length ? { errors: final.errors } : {}) } };
   }
+  const tokens = sumTokens(first.out.tokens, resubmission ? final.out.tokens : undefined);
   const ok = final.checked?.ok === true;
   const spec = final.checked?.ok ? final.checked.value : regs.fallback.spec;
   return {
@@ -116,12 +140,13 @@ export async function preseasonDesign(regs: Regulations, team: Team, calendar: r
       team: team.team,
       packet_hash: shortHash(packet),
       tool_calls: calls,
-      raw_response: JSON.stringify(first.r.value ?? null),
+      raw_response: first.out.raw,
       validation: { ok: first.errors.length === 0, ...(first.errors.length ? { errors: first.errors } : {}) },
       ...(resubmission ? { resubmission } : {}),
       final: spec,
       fallback_used: !ok,
       latency_s: first.r.latency + (resubmission ? final.r.latency : 0),
+      ...(tokens ? { tokens } : {}),
     },
   };
 }
@@ -178,18 +203,20 @@ export async function runGP(args: {
       }),
       calls,
     );
-    const attempt = async () => {
-      const r = await timed(() => team.agent.planGp(packet, tools));
+    const attempt = async (resubmit?: Resubmission) => {
+      const r = await timed(() => team.agent.planGp(packet, tools, resubmit), regs.penalties.response_timeout_s);
+      const out = rawOf(team.agent, r.value);
       const checked = r.error === null ? validatePlan(r.value, regs, { laps: track.laps }) : null;
-      return { r, checked, errors: r.error !== null ? [r.error] : checked && !checked.ok ? checked.issues.map(formatIssue) : [] };
+      return { r, out, checked, errors: r.error !== null ? [r.error] : checked && !checked.ok ? checked.issues.map(formatIssue) : [] };
     };
     const first = await attempt();
     let final = first;
     let resubmission: AgentIOLog['resubmission'];
     if (first.errors.length > 0 && regs.penalties.resubmissions > 0) {
-      final = await attempt();
-      resubmission = { raw_response: JSON.stringify(final.r.value ?? null), validation: { ok: final.errors.length === 0, ...(final.errors.length ? { errors: final.errors } : {}) } };
+      final = await attempt({ errors: first.errors });
+      resubmission = { raw_response: final.out.raw, validation: { ok: final.errors.length === 0, ...(final.errors.length ? { errors: final.errors } : {}) } };
     }
+    const tokens = sumTokens(first.out.tokens, resubmission ? final.out.tokens : undefined);
     const plan = final.checked?.ok ? final.checked.value : defaultPlan(regs, track.laps);
     plans.set(team.team, plan);
     const warnings = final.checked?.ok ? lint(final.checked.value).map(formatIssue) : [];
@@ -199,12 +226,13 @@ export async function runGP(args: {
       gp: args.gp,
       packet_hash: shortHash(packet),
       tool_calls: calls,
-      raw_response: JSON.stringify(first.r.value ?? null),
+      raw_response: first.out.raw,
       validation: { ok: first.errors.length === 0, ...(first.errors.length ? { errors: first.errors } : {}), ...(warnings.length ? { warnings } : {}) },
       ...(resubmission ? { resubmission } : {}),
       final: plan,
       fallback_used: final.checked?.ok !== true,
       latency_s: first.r.latency + (resubmission ? final.r.latency : 0),
+      ...(tokens ? { tokens } : {}),
     });
   }
   const race = runRace({
@@ -285,7 +313,12 @@ export async function runSeason(args: {
     season: args.season,
     seed: args.seed,
     regulations_hash: shortHash(regs),
-    teams: teams.map((t) => ({ team: t.team, agent: t.agent.kind, spec: specs.get(t.team) ?? regs.fallback.spec })),
+    teams: teams.map((t) => ({
+      team: t.team,
+      agent: t.agent.kind,
+      ...(t.agent.model !== undefined ? { model: t.agent.model } : {}),
+      spec: specs.get(t.team) ?? regs.fallback.spec,
+    })),
     gps: races.map((r) => ({
       gp: r.meta.gp,
       track: r.meta.track,

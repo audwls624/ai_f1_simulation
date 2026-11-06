@@ -5,23 +5,31 @@
 import { AgentIOLogSchema, CarSpecSchema, GPPlanSchema, type AgentIOLog, type CarSpec, type GPPlan } from '@f1sim/core';
 import type { GPPacket, PreseasonPacket, TeamAgent } from './base.js';
 
-export class ReplayAgent implements TeamAgent {
-  /** 기본 'replay'. 원래 에이전트 이름(SeasonLog teams[].agent)을 넘기면 재생한 SeasonLog도 원본과 바이트 단위로 같다. */
+/** 원래 에이전트 (SeasonLog teams[].agent·model). 넘기면 재생한 SeasonLog도 원본과 바이트 단위로 같다. */
+export interface ReplayOrigin {
   readonly kind: string;
+  readonly model?: string;
+}
+
+export class ReplayAgent implements TeamAgent {
+  /** 기본 'replay'. */
+  readonly kind: string;
+  readonly model?: string;
   readonly #lines: readonly AgentIOLog[];
 
-  constructor(lines: readonly AgentIOLog[], kind = 'replay') {
+  constructor(lines: readonly AgentIOLog[], origin: ReplayOrigin = { kind: 'replay' }) {
     this.#lines = lines;
-    this.kind = kind;
+    this.kind = origin.kind;
+    if (origin.model !== undefined) this.model = origin.model;
   }
 
   /** agents/<team>.jsonl 텍스트에서 만든다 (빈 줄 무시). */
-  static fromJsonl(text: string, kind = 'replay'): ReplayAgent {
+  static fromJsonl(text: string, origin?: ReplayOrigin): ReplayAgent {
     const lines = text
       .split('\n')
       .filter((l) => l.trim() !== '')
       .map((l) => AgentIOLogSchema.parse(JSON.parse(l)));
-    return new ReplayAgent(lines, kind);
+    return new ReplayAgent(lines, origin);
   }
 
   designCar(packet: PreseasonPacket): Promise<CarSpec> {
