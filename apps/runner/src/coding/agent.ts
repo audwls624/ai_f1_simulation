@@ -28,8 +28,8 @@ import { BRIEF, designTask, headlessPrompt, planTask } from './brief.js';
 
 const MS_PER_S = 1000;
 const DEFAULT_POLL_MS = 100;
-/** 제출이 받아들여진 뒤 에이전트가 스스로 끝낼 때까지 기다리는 시간. 넘으면 종료시킨다. */
-const EXIT_GRACE_MS = 15_000;
+/** 제출이 받아들여진 뒤 에이전트가 메모를 정리하고 스스로 끝낼 때까지 기다리는 시간. 넘으면 종료시킨다. */
+const EXIT_GRACE_MS = 60_000;
 const TOOL_SCRIPT = new URL('../../assets/f1sim-tool.mjs', import.meta.url);
 const WRAPPER = '#!/bin/sh\nexec node "$(dirname "$0")/.f1sim/tool.mjs" "$@"\n';
 
@@ -68,6 +68,8 @@ interface Submission {
 interface Session {
   readonly key: string;
   readonly spec: CallSpec;
+  /** 지금 기다리는 시도의 마감 (performance.now 기준). status가 남은 시간을 알려 준다. */
+  deadline: number;
   child: ChildProcess | null;
   exited: boolean;
   timer: ReturnType<typeof setInterval> | null;
@@ -102,6 +104,8 @@ export class CodingAgent implements TeamAgent {
   readonly #o: CodingAgentOptions;
   readonly #ipc: string;
   #session: Session | null = null;
+  /** 받아들여진 뒤 정리 중인 이전 호출의 프로세스. 다음 호출이 열리기 전에 끝낸다 (새 호출의 툴 예산을 쓰지 못하게). */
+  #lingering: ChildProcess | null = null;
   #report: CallReport | undefined;
   #attempt = 0;
 
@@ -181,6 +185,12 @@ export class CodingAgent implements TeamAgent {
   /** 떠 있는 에이전트 프로세스를 끝낸다 (시즌 끝, 중단). */
   dispose(): void {
     if (this.#session) this.#close(this.#session, true);
+    this.#stopLingering();
+  }
+
+  #stopLingering(): void {
+    if (this.#lingering && this.#lingering.exitCode === null && this.#lingering.signalCode === null) this.#lingering.kill('SIGTERM');
+    this.#lingering = null;
   }
 
   // ── 호출 ──────────────────────────────────────────────────────────────
@@ -192,10 +202,11 @@ export class CodingAgent implements TeamAgent {
     if (resubmission && current && current.key === spec.key && (!current.exited || current.queue.length > 0 || !this.#o.command)) {
       // 첫 제출이 거절된 대화가 살아 있다: 에이전트는 이미 오류를 받았다. 다음 제출을 기다린다.
       session = current;
+      session.deadline = deadline;
       this.#o.onEvent?.(`${this.#label(spec)}: waiting for the resubmission`);
     } else {
       if (current) this.#close(current, true);
-      session = this.#open(spec, resubmission?.errors);
+      session = this.#open(spec, resubmission?.errors, deadline);
     }
     const final = resubmission !== undefined;
     const sub = await this.#nextSubmission(session, deadline);
@@ -217,7 +228,7 @@ export class CodingAgent implements TeamAgent {
       ...(errors.length ? { errors } : {}),
       ...(warnings.length ? { warnings } : {}),
       next: accepted
-        ? 'Accepted. This call is done — stop now.'
+        ? 'Accepted. This call is done: update your notes if you keep any, then stop.'
         : final
           ? 'Rejected again. The default from rules.fallback will be used. This call is done — stop now.'
           : 'Rejected. Fix every error and submit once more; this is your only resubmission.',
@@ -232,14 +243,15 @@ export class CodingAgent implements TeamAgent {
     return `${spec.packet.team} ${spec.title}`;
   }
 
-  #open(spec: CallSpec, errors: readonly string[] | undefined): Session {
+  #open(spec: CallSpec, errors: readonly string[] | undefined, deadline: number): Session {
+    this.#stopLingering();
     for (const dir of ['inbox', 'outbox']) {
       rmSync(join(this.#ipc, dir), { recursive: true, force: true });
       mkdirSync(join(this.#ipc, dir), { recursive: true });
     }
     writeFileSync(join(this.#o.workspace, 'packet.json'), `${JSON.stringify(spec.packet, null, 1)}\n`);
     writeFileSync(join(this.#o.workspace, 'TASK.md'), spec.task(errors));
-    const session: Session = { key: spec.key, spec, child: null, exited: false, timer: null, queue: [], wake: null };
+    const session: Session = { key: spec.key, spec, deadline, child: null, exited: false, timer: null, queue: [], wake: null };
     session.timer = setInterval(() => this.#poll(session), this.#o.pollMs ?? DEFAULT_POLL_MS);
     this.#session = session;
     this.#attempt += 1;
@@ -329,7 +341,8 @@ export class CodingAgent implements TeamAgent {
         continue;
       }
       if (req.command === 'status') {
-        this.#reply(req.id, true, session.spec.status());
+        const secondsLeft = Math.max(0, Math.floor((session.deadline - performance.now()) / MS_PER_S));
+        this.#reply(req.id, true, { ...session.spec.status(), seconds_left: secondsLeft, time_limit_s: session.spec.timeoutS });
         continue;
       }
       const handler = session.spec.tools[req.command];
@@ -365,7 +378,11 @@ export class CodingAgent implements TeamAgent {
     if (child && !session.exited) {
       const kill = setTimeout(() => child.kill('SIGTERM'), EXIT_GRACE_MS);
       kill.unref();
-      child.once('exit', () => clearTimeout(kill));
+      this.#lingering = child;
+      child.once('exit', () => {
+        clearTimeout(kill);
+        if (this.#lingering === child) this.#lingering = null;
+      });
     }
     if (this.#session === session) this.#session = null;
   }

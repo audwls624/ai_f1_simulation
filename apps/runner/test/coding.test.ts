@@ -3,8 +3,8 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { HeuristicAgent, ReplayAgent, buildPreseasonPacket, checkDesignCar, makeDesignTools } from '@f1sim/agents';
-import { AgentIOLogSchema, SeasonLogSchema, makeRng, type Regulations, type Track } from '@f1sim/core';
+import { HeuristicAgent, ReplayAgent, buildGPPacket, buildPreseasonPacket, checkDesignCar, makeDesignTools, makePlanTools } from '@f1sim/agents';
+import { AgentIOLogSchema, SeasonLogSchema, gpForecast, makeRng, type Regulations, type Track } from '@f1sim/core';
 import { loadRegulations, loadTrack } from '@f1sim/harness';
 import { afterAll, describe, expect, it } from 'vitest';
 import { CodingAgent } from '../src/coding/agent.js';
@@ -50,6 +50,9 @@ describe('CodingAgent (DESIGN.md §9: coding agents in a team workspace)', () =>
     }
     expect(readFileSync(join(agent.workspace, 'BRIEF.md'), 'utf8')).not.toMatch(/failure_rate|mech_grip_mu|aero_grip/); // 엔진 모델 계수 없음
     expect(agent.takeReport()?.raw_response).toBe(readFileSync(join(agent.workspace, 'answer.json'), 'utf8'));
+    const status = JSON.parse(readFileSync(join(agent.workspace, 'status.json'), 'utf8')) as Record<string, unknown>;
+    expect(status).toMatchObject({ call: 'design_car', wind_tunnel_remaining: regs.tools.wind_tunnel.runs_preseason, time_limit_s: regs.penalties.response_timeout_s });
+    expect(status.seconds_left).toBeGreaterThan(regs.penalties.response_timeout_s - 30);
     expect(agent.takeReport()).toBeUndefined();
   }, 30_000);
 
@@ -93,6 +96,29 @@ describe('CodingAgent (DESIGN.md §9: coding agents in a team workspace)', () =>
     const quick: Regulations = { ...regs, penalties: { ...regs.penalties, response_timeout_s: 1 } };
     const agent = fake('slow');
     await expect(agent.designCar(preseason('t6', quick), designTools(quick))).rejects.toThrow('no response within 1 s');
+  }, 30_000);
+
+  it("an agent still running after its accepted call is stopped before the team's next call opens", async () => {
+    const agent = fake('linger');
+    const spec = await agent.designCar(preseason('t8'), designTools());
+    const pid = Number(readFileSync(join(agent.workspace, 'pid.txt'), 'utf8'));
+    const alive = (p: number) => {
+      try {
+        process.kill(p, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    expect(alive(pid)).toBe(true);
+    const track = calendar[0] as Track;
+    const forecast = gpForecast(track, regs, 3);
+    const packet = buildGPPacket({ regs, team: 't8', gp: 1, track, forecast, ownSpec: spec, standings: [], lastGp: null });
+    const tools = makePlanTools({ regs, season: 2026, gp: 1, track, forecast, team: 't8', ownSpec: spec, rivals: [], budget: 5, rng: makeRng(2) });
+    const plan = agent.planGp(packet, tools);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(alive(pid)).toBe(false);
+    expect((await plan).variants).toHaveLength(1);
   }, 30_000);
 
   it('manual mode: announces the workspace and waits until someone runs the agent there', async () => {
