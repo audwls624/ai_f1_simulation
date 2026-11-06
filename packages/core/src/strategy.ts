@@ -4,7 +4,7 @@
  * 레이스 엔진은 selectVariant로 변형을 고르고, 매 랩 evaluateRules로 첫 매치 규칙을 실행한다.
  */
 import { z } from 'zod';
-import { SetupSchema } from './car.js';
+import { SetupSchema, type Setup } from './car.js';
 import {
   CompoundSchema,
   PaceModeSchema,
@@ -318,3 +318,21 @@ export function nextPlannedCompound(plan: RacePlan, stintIndex: number, fallback
   return plan.stints[stintIndex + 1]?.compound ?? fallback;
 }
 
+
+/**
+ * 3절 기본 전략: 검증에 두 번 실패했을 때, 그리고 전략 시뮬의 라이벌 (9절). 규칙 없는 고정 스틴트.
+ * 피트 랩: 스틴트 2개면 laps × pit_at_fraction, 더 많으면 그 지점까지를 고르게 나눈다.
+ */
+export function defaultPlan(rules: Pick<Rules, 'fallback'>, laps: number, setup: Setup = rules.fallback.setup): GPPlan {
+  const compounds = rules.fallback.plan.stints;
+  const n = compounds.length;
+  const stints = compounds.map((compound, i) => {
+    if (i === n - 1) return { compound };
+    const lap_ = Math.max(1, Math.min(laps - 1, Math.round((laps * rules.fallback.plan.pit_at_fraction * (i + 1)) / (n - 1))));
+    return { compound, planned_pit_lap: lap_ };
+  });
+  return GPPlanSchema.parse({
+    setup,
+    variants: [{ when: {}, plan: { start_compound: compounds[0], pace: 'normal', stints, rules: [] } }],
+  });
+}

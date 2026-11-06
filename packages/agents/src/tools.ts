@@ -1,21 +1,28 @@
 /**
  * 에이전트 툴 (DESIGN.md 9절). 횟수는 공통 측이 세고, 초과하면 오류를 던진다 (에이전트가 세지 않는다).
- * M1: 설계 툴(풍동)만. strategySim은 M3.
+ * 설계 툴(풍동, 프리시즌)과 플랜 툴(전략 시뮬, GP마다).
  */
 import {
   baseLap,
+  defaultPlan,
   derive,
+  runRace,
+  validatePlan,
   validateSetup,
   validateSpec,
   wearPerLap,
   type CarSpec,
+  type Forecast,
+  type GPPlan,
   type LapBreakdown,
+  type RaceEntry,
   type Regulations,
   type Rng,
   type Setup,
   type Track,
   type ValidationIssue,
 } from '@f1sim/core';
+import type { PlanTools, StrategySimResult } from './base.js';
 
 /** 풍동 결과: 이 트랙에서의 기본 랩타임 내역(노이즈 포함) + 마모율 추정 (9절). */
 export interface WindTunnelResult {
@@ -111,3 +118,81 @@ export function makeDesignTools(regs: Regulations, tracks: readonly Track[], bud
     },
   };
 }
+
+const STRATEGY_SIM = 'strategy_sim';
+const UINT32_RANGE = 2 ** 32;
+
+export interface PlanToolsArgs {
+  readonly regs: Regulations;
+  readonly season: number;
+  readonly gp: number;
+  readonly track: Track;
+  readonly forecast: Forecast;
+  readonly team: string;
+  readonly ownSpec: CarSpec;
+  /** 라이벌 스펙 추정치 (9절: 지난 GP 스펙 추정치). 라이벌은 기본 전략으로 달린다. */
+  readonly rivals: readonly { readonly team: string; readonly spec: CarSpec }[];
+  readonly budget: number;
+  /** 이 팀·이 GP의 툴 전용 스트림 (11절: 실제 레이스와 다른 시드). */
+  readonly rng: Rng;
+}
+
+/**
+ * 9절 strategy_sim: 자기 GPPlan을 n개 시드로 돌린 결과 분포. 라이벌은 추정 스펙 + 기본 전략(3절).
+ * 호출마다 횟수 1회. 플랜이 검증에 실패하면 ToolInputError (횟수·난수 그대로).
+ */
+export function makePlanTools(args: PlanToolsArgs): PlanTools {
+  const { regs, track } = args;
+  if (!Number.isInteger(args.budget) || args.budget < 0) throw new RangeError(`budget must be a non-negative integer (got ${args.budget})`);
+  let remaining = args.budget;
+  const rivals: RaceEntry[] = args.rivals.map((r) => ({ team: r.team, spec: r.spec, plan: defaultPlan(regs, track.laps) }));
+  return {
+    get remaining() {
+      return remaining;
+    },
+    strategySim(plan: GPPlan, nSamples?: number): StrategySimResult {
+      if (remaining <= 0) throw new ToolBudgetError(STRATEGY_SIM, args.budget);
+      const checked = validatePlan(plan, regs, { laps: track.laps });
+      const samples = nSamples ?? regs.tools.strategy_sim.default_samples;
+      const problems = [
+        ...(checked.ok ? [] : checked.issues.map((i) => argIssue('plan', i))),
+        ...(Number.isInteger(samples) && samples >= 1 && samples <= regs.tools.strategy_sim.max_samples
+          ? []
+          : [`nSamples: must be an integer from 1 to ${regs.tools.strategy_sim.max_samples} (got ${samples})`]),
+      ];
+      if (!checked.ok || problems.length > 0) throw new ToolInputError(STRATEGY_SIM, problems);
+      remaining -= 1;
+      const own: RaceEntry = { team: args.team, spec: args.ownSpec, plan: checked.value };
+      const positions = new Array<number>(rivals.length + 1).fill(0);
+      let posSum = 0;
+      let timeSum = 0;
+      let finished = 0;
+      let fallbacks = 0;
+      let pits = 0;
+      for (let k = 0; k < samples; k++) {
+        const seed = Math.floor(args.rng.next() * UINT32_RANGE);
+        const log = runRace({ season: args.season, gp: args.gp, track, forecast: args.forecast, entries: [own, ...rivals], seed, regs });
+        const me = log.result.find((r) => r.team === args.team);
+        if (!me) continue;
+        positions[me.pos - 1] = (positions[me.pos - 1] ?? 0) + 1;
+        posSum += me.pos;
+        if (me.time !== null) {
+          timeSum += me.time;
+          finished += 1;
+        }
+        fallbacks += log.strategy_trace.filter((t) => t.car === args.team && t.source.startsWith('fallback')).length;
+        pits += log.events.filter((e) => e.type === 'pit' && e.car === args.team).length;
+      }
+      return {
+        samples,
+        mean_position: posSum / samples,
+        position_counts: positions,
+        mean_race_time_s: finished > 0 ? timeSum / finished : null,
+        dnf_rate: 1 - finished / samples,
+        fallbacks_per_race: fallbacks / samples,
+        mean_pit_stops: pits / samples,
+      };
+    },
+  };
+}
+

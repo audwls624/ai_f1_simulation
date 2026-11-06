@@ -1,6 +1,7 @@
 import { parse } from 'yaml';
 import { describe, expect, it } from 'vitest';
 import {
+  defaultPlan,
   evaluateRules,
   initialRuleState,
   lint,
@@ -259,5 +260,18 @@ describe('evaluateRules (DESIGN.md §8 semantics)', () => {
     expect(nextPlannedCompound(plan, 1)).toBe('hard');
     expect(nextPlannedCompound(docPlan().variants[1]?.plan as RacePlan, 0)).toBe('hard');
     expect(nextPlannedCompound(docPlan().variants[1]?.plan as RacePlan, 1)).toBe('medium');
+  });
+});
+
+describe('defaultPlan (DESIGN.md §3)', () => {
+  it('is the 1-stop medium → hard plan without rules, and it validates', () => {
+    const plan = defaultPlan(regs, 57);
+    expect(plan.variants).toHaveLength(1);
+    const p = plan.variants[0]?.plan;
+    expect(p?.stints.map((s) => s.compound)).toEqual(['medium', 'hard']);
+    expect(p?.stints[0]?.planned_pit_lap).toBe(Math.round(57 * regs.fallback.plan.pit_at_fraction));
+    expect(p?.rules).toEqual([]);
+    expect(validatePlan(plan, regs, { laps: 57 }).ok).toBe(true);
+    expect(lint(plan)).toEqual([]);
   });
 });

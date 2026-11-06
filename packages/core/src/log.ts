@@ -102,6 +102,31 @@ export const RaceLogSchema = z.strictObject({
 });
 export type RaceLog = z.infer<typeof RaceLogSchema>;
 
+/**
+ * 공개 레이스 로그 (9절): 결과·랩타임·피트 타이밍은 공개, 스펙·셋업·규칙(전략 트레이스)은 비공개.
+ * 라이벌의 전략 성향은 이것만 보고 추론해야 한다.
+ */
+export const PublicRaceLogSchema = z.strictObject({
+  schema: z.literal('racelog-public/1'),
+  meta: RaceLogSchema.shape.meta,
+  cars: z.array(z.strictObject({ team: z.string(), grid: z.int().min(1), quali_lap: time })),
+  laps: RaceLogSchema.shape.laps,
+  events: RaceLogSchema.shape.events,
+  result: RaceLogSchema.shape.result,
+});
+export type PublicRaceLog = z.infer<typeof PublicRaceLogSchema>;
+
+export function publicRaceLog(log: RaceLog): PublicRaceLog {
+  return PublicRaceLogSchema.parse({
+    schema: 'racelog-public/1',
+    meta: log.meta,
+    cars: log.cars.map((c) => ({ team: c.team, grid: c.grid, quali_lap: c.quali_lap })),
+    laps: log.laps,
+    events: log.events,
+    result: log.result,
+  });
+}
+
 /** 10절 AgentIOLog: 팀별 JSONL, 호출마다 한 줄. ReplayAgent는 final만 읽는다. */
 export const AgentIOLogSchema = z.strictObject({
   call: z.enum(['design_car', 'plan_gp']),

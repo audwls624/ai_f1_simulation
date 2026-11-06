@@ -178,7 +178,7 @@ const rulesShape = {
       noise_sd_s: nonNegative,
       wear_compound: CompoundSchema,
     }),
-    strategy_sim: z.strictObject({ runs_per_gp: count, default_samples: positiveCount }),
+    strategy_sim: z.strictObject({ runs_per_gp: count, default_samples: positiveCount, max_samples: positiveCount }),
   }),
   points: z.array(nonNegative).min(1),
   penalties: z.strictObject({
@@ -186,7 +186,11 @@ const rulesShape = {
     resubmissions: count,
     response_timeout_s: positive,
   }),
-  fallback: z.strictObject({ spec: CarSpecSchema }),
+  fallback: z.strictObject({
+    spec: CarSpecSchema,
+    setup: SetupSchema,
+    plan: z.strictObject({ stints: z.array(CompoundSchema).min(1), pit_at_fraction: z.number().gt(0).lt(1) }),
+  }),
   tires: z.strictObject({
     allocation_sets: z.record(CompoundSchema, count),
     qualifying: z.strictObject({ compound: CompoundSchema, sets: positiveCount }),

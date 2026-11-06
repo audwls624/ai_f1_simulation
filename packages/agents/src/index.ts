@@ -1,10 +1,24 @@
-// @f1sim/agents — TeamAgent 프로토콜, DesignTools/PlanTools, 에이전트 구현체 (DESIGN.md 9·13절).
-// M1–M2: 설계 툴(풍동), 휴리스틱 설계. TeamAgent·패킷(base.ts), strategySim, 리플레이 에이전트는 M3.
+// @f1sim/agents — TeamAgent 프로토콜, 정보 패킷, 툴(풍동·전략 시뮬), 에이전트 구현체 (DESIGN.md 9·13절).
+export type {
+  CalendarEntry,
+  GPPacket,
+  PlanTools,
+  PreseasonPacket,
+  Standing,
+  StrategySimResult,
+  TeamAgent,
+  WindTunnelSummary,
+} from './base.js';
+export { SUMMARY_WINGS, buildGPPacket, buildPreseasonPacket, windTunnelSummary } from './packets.js';
 export {
   ToolBudgetError,
   ToolInputError,
   makeDesignTools,
+  makePlanTools,
   type DesignTools,
+  type PlanToolsArgs,
   type WindTunnelResult,
 } from './tools.js';
-export { heuristicDesign, representativeTrack, type DesignInputs } from './heuristic.js';
+export { HeuristicAgent, bestWingFromSummary, heuristicDesign, heuristicPlan, representativeTrack, type DesignInputs } from './heuristic.js';
+export { ReplayAgent } from './replay.js';
+export { checkDesignCar, checkPlanGp, type ConformanceReport } from './conformance/index.js';

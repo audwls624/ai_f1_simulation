@@ -41,6 +41,7 @@ tools:
   strategy_sim:
     runs_per_gp: 5
     default_samples: 20         # 9절 strategySim(plan, nSamples?)의 기본 시드 수. TODO(balance)
+    max_samples: 50             # 한 번에 돌릴 수 있는 최대 시드 수. TODO(balance)
 
 # 3절: 1–10위. 패스티스트 랩 포인트 없음
 points: [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]
@@ -50,13 +51,16 @@ penalties:
   resubmissions: 1              # 스펙·전략 검증 실패 시 재제출 기회
   response_timeout_s: 600       # 2절: 응답 제한 시간 기본 10분. 초과는 검증 실패와 동일
 
-# 3절: 재제출도 실패하면 이 스펙 (+ 첫 GP 그리드 최후위).
-# 기본 전략(1스톱 medium→hard)은 전략 DSL 스키마가 생기는 M3에서 추가한다.
+# 3절: 재제출도 실패하면 이 스펙 (+ 첫 GP 그리드 최후위), 전략 검증 실패면 이 셋업·기본 전략.
 fallback:
   spec:                         # TODO(balance): 문서에 값 없음. 전부 0.7 (약 89 크레딧)
     powertrain: { thermal_efficiency: 0.7, reliability: 0.7, ers_capacity: 0.7, cooling: 0.7 }
     chassis: { weight_reduction: 0.7, mech_grip: 0.7, tire_management: 0.7, wheelbase: long }
     aero: { aero_efficiency: 0.7, philosophy: wing, dirty_air_resistance: 0.7, drs_effect: 0.7 }
+  setup: { wing_level: 5, ride_height: mid, ers_mode: balanced }   # TODO(balance)
+  plan:                         # 3절 기본 전략: 1스톱 medium→hard, 규칙 없음
+    stints: [medium, hard]
+    pit_at_fraction: 0.45       # TODO(balance): 피트 랩 = 레이스 랩 × 이 값 (스틴트가 더 많으면 고르게 나눔)
 
 # ── 3·6절: 타이어 ───────────────────────────────────────────────────────
 tires:
