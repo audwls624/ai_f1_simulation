@@ -8,9 +8,10 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { parseTrack, profile } from '@f1sim/core';
+import { heuristicDesign, makeDesignTools } from '@f1sim/agents';
+import { makeRng, parseTrack, profile } from '@f1sim/core';
 import { DATA_DIR, loadRegulations } from './data.js';
-import type { Sampling } from './design.js';
+import { bestSetupLap, seasonTime, type Sampling } from './design.js';
 import { defaultWorkers, runDesignExploration } from './explore.js';
 import { designMetrics, designReport } from './report.js';
 import { TRACK_BRIEFS } from './track-briefs.js';
@@ -61,12 +62,31 @@ async function design(args: string[]): Promise<void> {
   mkdirSync(REPORTS_DIR, { recursive: true });
   const suffix = sampling === 'budget-surface' ? '' : `-${sampling}`;
   const out = join(REPORTS_DIR, `${date}-design${suffix}.md`);
-  writeFileSync(out, designReport(run, regs, date));
+  writeFileSync(out, designReport(run, regs, date, [heuristicSection(run, regs, Number(values.seed))]));
   const m = designMetrics(run);
   console.log(`metric 1 (max win share): ${(m.metric1.share * 100).toFixed(1)}% ${m.metric1.pass ? 'pass' : 'FAIL'}`);
   console.log(`metric 2 (max variance share): ${m.metric2.top.name} ${(m.metric2.top.share * 100).toFixed(1)}% ${m.metric2.pass ? 'pass' : 'FAIL'}`);
   console.log(`metric 3 (architecture): floor ${m.metric3.floor} wing ${m.metric3.wing} short ${m.metric3.short} long ${m.metric3.long} ${m.metric3.pass ? 'pass' : 'FAIL'}`);
   console.log(`report: ${out} (${((performance.now() - started) / 1000).toFixed(1)} s)`);
+}
+
+/** 휴리스틱 설계를 같은 조건으로 평가해 랜덤 스펙 분포 안의 위치를 보여준다 (12절: LLM 팀의 기준선). */
+function heuristicSection(run: Awaited<ReturnType<typeof runDesignExploration>>, regs: ReturnType<typeof loadRegulations>, seed: number) {
+  const tools = makeDesignTools(regs, run.tracks, regs.tools.wind_tunnel.runs_preseason, makeRng(seed).spawn('heuristic-tools'));
+  const spec = heuristicDesign({ cost: regs.cost, tracks: run.tracks.map((t) => ({ id: t.id, profile: profile(t) })) }, tools);
+  const time = seasonTime(run.tracks.map((t) => bestSetupLap(spec, t, regs).lap), run.tracks);
+  const better = run.seasonTimes.filter((x) => x < time).length;
+  const bestRandom = Math.min(...run.seasonTimes);
+  const body = [
+    `- 스펙: ${spec.aero.philosophy}/${spec.chassis.wheelbase}, ` +
+      Object.entries({ ...spec.powertrain, ...spec.chassis, ...spec.aero })
+        .filter(([, v]) => typeof v === 'number')
+        .map(([k, v]) => `${k} ${(v as number).toFixed(2)}`)
+        .join(', '),
+    `- 시즌 시간 ${time.toFixed(1)} s — 랜덤 스펙 ${run.seasonTimes.length}개 중 ${better}개가 더 빠름 (상위 ${((better / run.seasonTimes.length) * 100).toFixed(1)}%)`,
+    `- 랜덤 최고 대비 +${(time - bestRandom).toFixed(1)} s, 풍동 ${regs.tools.wind_tunnel.runs_preseason - tools.remaining}회 사용`,
+  ].join('\n');
+  return { title: '휴리스틱 설계 (기준선)', body };
 }
 
 const [command, ...rest] = process.argv.slice(2);
