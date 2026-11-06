@@ -27,8 +27,8 @@ You are team "<팀>" in the f1sim racing game, and the current directory is your
 | sol | Codex CLI | gpt-6.1-sol | 헤드리스 |
 | terra | Codex CLI | gpt-6.1-terra | 헤드리스 |
 | grok | Cursor | Grok 4.7 | 수동 (IDE) |
-| deepseek | OpenCode | DeepSeek V4.1 Flash (`opencode/deepseek-v4.1-flash`) | 헤드리스 |
-| glm | OpenCode | GLM-5.3 Flash (`opencode/glm-5.3-flash`) | 헤드리스 |
+| deepseek | OpenCode | DeepSeek V4.1 Flash (`opencode/deepseek-v4.1-flash-free`, 로그인하면 `-free` 빼기) | 헤드리스 |
+| glm | OpenCode | GLM-5.3 Flash (`opencode/glm-5.3-flash-free`, 로그인하면 `-free` 빼기) | 헤드리스 |
 | flash | Antigravity | Gemini 3.8 Flash | 수동 (IDE) |
 | heuristic-01 | 휴리스틱 | — | 기준선 |
 
@@ -61,7 +61,7 @@ You are team "<팀>" in the f1sim racing game, and the current directory is your
 - 터미널 명령 실행이 매번 승인 대기면 `./f1sim` 실행을 자동으로 허용하는 쪽으로 바꾼다 (설정 이름은 버전마다 다를 수 있다).
 - 같은 모델을 헤드리스로 돌리고 싶으면 Gemini CLI 항목을 쓴다.
 
-**OpenCode** (`opencode`) — 헤드리스. 명령줄용 `opencode`가 동작해야 한다 — 데스크톱 앱(`OpenCode.app`)만으로는 러너가 띄울 수 없다 (그때는 Cursor처럼 수동으로). 첫 스파 시험에서 이 머신의 `~/.opencode/bin/opencode`(2026-01 설치본)는 아무 출력 없이 바로 끝났다.
+**OpenCode** (`opencode`) — 헤드리스. 명령줄용 `opencode`가 동작해야 한다 — 데스크톱 앱(`OpenCode.app`)만으로는 러너가 띄울 수 없다 (그때는 Cursor처럼 수동으로). 첫 스파 시험에서 이 머신의 `~/.opencode/bin/opencode`(2026-01 설치본)는 아무 출력 없이 바로 끝나 공식 설치 스크립트로 1.19.5를 다시 깔았다. 로그인(`opencode auth login`) 없이는 OpenCode Zen 무료판(`opencode/deepseek-v4.1-flash-free`, `opencode/glm-5.3-flash-free`)만 쓸 수 있고 유료 ID는 서버 오류로 실패한다.
 - `command: [opencode, run, -m, <provider/model>, "{prompt}"]` (예: xAI 모델이면 `xai/<모델>`). 비대화 모드에서 셸·편집 권한 확인이 막히지 않도록 OpenCode 설정에서 이 워크스페이스의 bash·edit을 허용한다.
 - 이 머신의 opencode는 비TTY에서 도움말을 출력하지 않아 플래그를 확인하지 못했다 — 1GP 시험으로 확인.
 

@@ -50,18 +50,19 @@ teams:
     model: grok-4.7
 
   # ── OpenCode: DeepSeek V4.1 Flash, GLM-5.3 Flash (헤드리스) ─────────────
-  # 모델은 OpenCode Zen(opencode/…)으로. 다른 프로바이더를 쓰면 -m만 바꾼다 (예: zai/glm-5.3-flash).
-  # 비대화 모드라 OpenCode 설정에서 bash·edit을 허용해 둘 것.
+  # 지금은 로그인 없이 쓸 수 있는 OpenCode Zen 무료판(-free). `opencode auth login`으로 OpenCode Zen에 로그인하면
+  # 모델 이름에서 -free를 빼서 유료판으로 (다른 프로바이더면 -m만 바꾼다, 예: zai/glm-5.3-flash).
+  # opencode CLI 1.19.5에서 확인: 헤드리스 run이 셸 명령을 승인 없이 실행한다.
   - team: deepseek
     agent: coding
     label: opencode
-    model: deepseek-v4.1-flash
-    command: [opencode, run, -m, opencode/deepseek-v4.1-flash, "{prompt}"]
+    model: deepseek-v4.1-flash-free
+    command: [opencode, run, -m, opencode/deepseek-v4.1-flash-free, "{prompt}"]
   - team: glm
     agent: coding
     label: opencode
-    model: glm-5.3-flash
-    command: [opencode, run, -m, opencode/glm-5.3-flash, "{prompt}"]
+    model: glm-5.3-flash-free
+    command: [opencode, run, -m, opencode/glm-5.3-flash-free, "{prompt}"]
 
   # ── Antigravity: Gemini 3.8 Flash (수동) ─────────────────────────────
   # 러너가 경로를 출력하면 Antigravity에서 그 폴더를 열고, 에이전트 대화에서 Gemini 3.8 Flash를 고른 뒤 지시 문장을 보낸다.
