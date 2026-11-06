@@ -9,6 +9,7 @@ import {
   makePlanTools,
   type DesignTools,
   type PlanTools,
+  type Standing,
   type TeamAgent,
 } from '@f1sim/agents';
 import {
@@ -18,15 +19,20 @@ import {
   gpForecast,
   lint,
   makeRng,
+  publicRaceLog,
   runRace,
   shortHash,
+  standings as computeStandings,
   validatePlan,
   validateSpec,
   type AgentIOLog,
   type CarSpec,
   type GPPlan,
+  type PublicRaceLog,
   type RaceLog,
   type Regulations,
+  type SeasonLog,
+  type StandingRow,
   type Track,
 } from '@f1sim/core';
 
@@ -135,6 +141,8 @@ export async function runGP(args: {
   readonly teams: readonly Team[];
   readonly specs: ReadonlyMap<string, CarSpec>;
   readonly gridPenalty: ReadonlySet<string>;
+  readonly standings?: readonly Standing[];
+  readonly lastGp?: PublicRaceLog | null;
 }): Promise<GPOutcome> {
   const { regs, track } = args;
   const raceSeed = deriveSeed(args.seasonSeed, `gp:${args.gp}`);
@@ -143,7 +151,16 @@ export async function runGP(args: {
   const agentLogs: AgentIOLog[] = [];
   for (const team of args.teams) {
     const spec = args.specs.get(team.team) ?? regs.fallback.spec;
-    const packet = buildGPPacket({ regs, team: team.team, gp: args.gp, track, forecast, ownSpec: spec, standings: [], lastGp: null });
+    const packet = buildGPPacket({
+      regs,
+      team: team.team,
+      gp: args.gp,
+      track,
+      forecast,
+      ownSpec: spec,
+      standings: args.standings ?? [],
+      lastGp: args.lastGp ?? null,
+    });
     const calls: ToolCall[] = [];
     const tools = recordPlanTools(
       makePlanTools({
@@ -205,4 +222,82 @@ export async function runGP(args: {
     })),
   });
   return { race, agentLogs };
+}
+
+export interface SeasonOutcome {
+  readonly races: readonly RaceLog[];
+  readonly agentLogs: ReadonlyMap<string, readonly AgentIOLog[]>;
+  readonly specs: ReadonlyMap<string, CarSpec>;
+  readonly standings: readonly StandingRow[];
+  readonly log: SeasonLog;
+}
+
+/**
+ * 시즌 한 번 (2절): 프리시즌 설계 1회 → GP마다 플랜 → 레이스. 패킷에는 현재 순위와 지난 GP 공개 로그.
+ * 3절 그리드 페널티(스펙 검증 실패)는 첫 GP에만.
+ */
+export async function runSeason(args: {
+  readonly regs: Regulations;
+  readonly season: number;
+  readonly seed: number;
+  readonly calendar: readonly Track[];
+  readonly teams: readonly Team[];
+  /** GP 하나가 끝날 때마다 (진행 표시용). */
+  readonly onGp?: (gp: number, race: RaceLog) => void;
+}): Promise<SeasonOutcome> {
+  const { regs, teams } = args;
+  const names = teams.map((t) => t.team);
+  const agentLogs = new Map<string, AgentIOLog[]>(names.map((n) => [n, []]));
+  const specs = new Map<string, CarSpec>();
+  const penalties = new Set<string>();
+  for (const team of teams) {
+    const d = await preseasonDesign(regs, team, args.calendar, args.seed);
+    specs.set(team.team, d.spec);
+    if (d.gridPenalty) penalties.add(team.team);
+    agentLogs.get(team.team)?.push(d.log);
+  }
+  const races: RaceLog[] = [];
+  for (let i = 0; i < args.calendar.length; i++) {
+    const track = args.calendar[i];
+    if (!track) continue;
+    const gp = i + 1;
+    const table = computeStandings(names, races.map((r) => r.result)).map((r) => ({ team: r.team, points: r.points }));
+    const last = races.at(-1);
+    const outcome = await runGP({
+      regs,
+      season: args.season,
+      seasonSeed: args.seed,
+      gp,
+      track,
+      teams,
+      specs,
+      gridPenalty: gp === 1 ? penalties : new Set(),
+      standings: table,
+      lastGp: last ? publicRaceLog(last) : null,
+    });
+    races.push(outcome.race);
+    for (const l of outcome.agentLogs) agentLogs.get(l.team)?.push(l);
+    args.onGp?.(gp, outcome.race);
+  }
+  const final = computeStandings(names, races.map((r) => r.result));
+  const log: SeasonLog = {
+    schema: 'seasonlog/1',
+    season: args.season,
+    seed: args.seed,
+    regulations_hash: shortHash(regs),
+    teams: teams.map((t) => ({ team: t.team, agent: t.agent.kind, spec: specs.get(t.team) ?? regs.fallback.spec })),
+    gps: races.map((r) => ({
+      gp: r.meta.gp,
+      track: r.meta.track,
+      race: `${gpDir(r.meta.gp, r.meta.track)}/race.json`,
+      winner: r.result[0]?.team ?? '',
+    })),
+    standings: final.map((r) => ({ team: r.team, points: r.points, pos: r.pos })),
+  };
+  return { races, agentLogs, specs, standings: final, log };
+}
+
+/** 10절 디렉터리 이름: gp07_silverstone. */
+export function gpDir(gp: number, track: string): string {
+  return `gp${String(gp).padStart(2, '0')}_${track}`;
 }

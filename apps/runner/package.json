@@ -18,7 +18,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
     "race": "tsx --conditions=@f1sim/source src/cli.ts race",
-    "replay": "tsx --conditions=@f1sim/source src/cli.ts replay"
+    "replay": "tsx --conditions=@f1sim/source src/cli.ts replay",
+    "season": "tsx --conditions=@f1sim/source src/cli.ts season"
   },
   "dependencies": {
     "@f1sim/agents": "workspace:*",
