@@ -1,7 +1,7 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { derive, type CarSpec, type Setup } from '../src/car.js';
-import { baseLap, raceLap, type LapBreakdown, type LapState } from '../src/laptime.js';
+import { baseLap, lapProgress, raceLap, type LapBreakdown, type LapState } from '../src/laptime.js';
 import type { Surface } from '../src/regulations.js';
 import { TRACK_IDS, baseSetup, docExampleSpec, regs, setupArb, specArb, tracks, withSpec, type TrackId } from './helpers.js';
 
@@ -98,6 +98,26 @@ describe('baseLap properties', () => {
 
   it('is deterministic', () => {
     for (const id of TRACK_IDS) expect(lap(id)).toEqual(lap(id));
+  });
+});
+
+describe('lapProgress (replay interpolation)', () => {
+  it('starts at 0, rises monotonically below 1, and climbs faster per metre in corners than on straights', () => {
+    for (const id of TRACK_IDS) {
+      const track = tracks[id];
+      const perf = derive(docExampleSpec, baseSetup, track, regs);
+      const p = lapProgress(perf, track, 'dry', regs);
+      expect(p).toHaveLength(track.samples.length);
+      expect(p[0]).toBe(0);
+      for (let i = 1; i < p.length; i++) expect(p[i] ?? 0).toBeGreaterThan(p[i - 1] ?? 0);
+      expect(p.at(-1) ?? 1).toBeLessThan(1);
+      const rate = (kind: 'straight' | 'corner') => {
+        const steps = p.slice(0, -1).map((v, i) => ({ d: (p[i + 1] ?? 0) - v, kind: track.segments[track.samples[i]?.segment ?? 0]?.kind }));
+        const xs = steps.filter((x) => x.kind === kind).map((x) => x.d);
+        return xs.reduce((a, b) => a + b, 0) / xs.length;
+      };
+      expect(rate('corner')).toBeGreaterThan(rate('straight'));
+    }
   });
 });
 

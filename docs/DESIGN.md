@@ -503,6 +503,8 @@ LLM 팀은 provider API를 직접 부르지 않고, 각 모델의 코딩 에이�
 - `s`는 랩 내 거리가 아니라 레이스 누적 거리. 렌더러는 `s mod track_length`로 스플라인 위치를 구한다. 피트레인 구간은 `events`의 pit 시각으로 판별.
 - `strategy_trace.source`: `rule` / `planned` / `fallback:<reason>`. "왜 이 팀이 여기서 피트했나"의 답.
 - M3 구현의 추가 필드: 랩별 차 상태에 `ers`(배터리 잔량), `cars`에 `quali_lap`, `result`에 `laps`·`status`·`points`, 이벤트 `overtake_failed`·`retirement`. 거리 샘플(`samples`)은 렌더러(M7)에서 붙이며 그 전까지 `sample_interval_m: null`.
+- 이벤트의 `s`는 랩 안 거리다 (위 예시처럼; 누적 거리는 `samples`의 `s`). 고장은 그 랩을 시작하는 시점(출발선, `s = 0`)에 기록되고, 피트는 `pit_entry_m`.
+- 거리 샘플 전까지 2D 뷰어(`apps/web`)는 랩 끝 누적 시간을 core의 `lapProgress(perf, track, surface, regs)`(샘플별 랩 시간 비율)로 보간해 랩 안 위치를 그린다 — 코너에서 느리고 직선에서 빠르다.
 
 **AgentIOLog** (팀별, 호출마다 한 줄, JSONL)
 
@@ -656,7 +658,7 @@ f1sim/
       assets/f1sim-tool.mjs  #   워크스페이스에 복사되는 ./f1sim (파일 IPC만, 엔진 코드 없음)
       teams.example.yaml     #   팀 파일: 코딩 에이전트 팀 + 휴리스틱 팀
       golden/<season>-s<seed>/  # 골든 로그 (11절): 제출물 + 출력 해시. 회귀 테스트가 재생해 대조
-    web/                     # Vite + Three.js: 리플레이, 리더보드, 사람 팀 UI (나중에)
+    web/                     # Vite: 지금은 2D 리플레이 뷰어 (M5 중 앞당김). Three.js 3D·리더보드·사람 팀 UI는 나중에
   data/
     regulations/2026.yaml    # 공개 규정 (패킷에 들어감)
     model/2026.yaml          # 엔진 모델 계수 (비공개)

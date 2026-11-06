@@ -69,7 +69,7 @@ export {
 
 export { degradation, tireOffset, warmupPenalty, wearPerLap } from './tires.js';
 
-export { baseLap, inDirtyAir, raceLap, type LapBreakdown, type LapState } from './laptime.js';
+export { baseLap, inDirtyAir, lapProgress, raceLap, type LapBreakdown, type LapState } from './laptime.js';
 
 export {
   ForecastSchema,

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "replay-viewer",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["-F", "@f1sim/web", "dev"],
+      "port": 5173
+    }
+  ]
+}

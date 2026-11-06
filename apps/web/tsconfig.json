@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    // vite.config.ts와 테스트는 Node에서 돈다. src는 브라우저 코드 (Node API를 쓰지 않는다).
+    "types": ["node"]
+  },
+  "include": ["src", "test", "vite.config.ts"]
+}

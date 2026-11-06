@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>f1sim 리플레이</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div class="app viz-root">
+      <header class="bar">
+        <div class="pick">
+          <label>시즌 <select id="run"></select></label>
+          <label>GP <select id="gp"></select></label>
+        </div>
+        <h1 id="title">f1sim</h1>
+        <div id="status" class="status" aria-live="polite"></div>
+      </header>
+      <main class="body">
+        <section class="map" aria-label="트랙 지도">
+          <canvas id="map"></canvas>
+          <div id="tip" class="tip" hidden></div>
+          <p id="empty" class="empty" hidden></p>
+        </section>
+        <aside class="side">
+          <table class="tower" aria-label="순위">
+            <thead>
+              <tr><th>P</th><th>팀</th><th class="num">간격</th><th>타이어</th><th class="num">피트</th><th></th></tr>
+            </thead>
+            <tbody id="tower"></tbody>
+          </table>
+          <h2>이벤트</h2>
+          <ol id="events" class="events"></ol>
+        </aside>
+      </main>
+      <footer class="controls">
+        <button id="play" type="button">재생</button>
+        <button id="prev" type="button" title="이전 랩">◀ 랩</button>
+        <button id="next" type="button" title="다음 랩">랩 ▶</button>
+        <input id="scrub" type="range" min="0" max="1" step="0.1" value="0" aria-label="레이스 시간" />
+        <span id="clock" class="clock">0:00</span>
+        <label>속도
+          <select id="speed">
+            <option value="1">1×</option>
+            <option value="5">5×</option>
+            <option value="20" selected>20×</option>
+            <option value="60">60×</option>
+            <option value="200">200×</option>
+          </select>
+        </label>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

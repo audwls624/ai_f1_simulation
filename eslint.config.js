@@ -59,6 +59,11 @@ export default defineConfig(
     },
   },
   {
+    // 리플레이 뷰어 (브라우저)
+    files: ['apps/web/src/**/*.ts'],
+    languageOptions: { globals: { ...globals.browser } },
+  },
+  {
     files: ['packages/core/src/**/*.ts'],
     rules: {
       'no-restricted-globals': ['error', ...coreRestrictedGlobals],

@@ -183,6 +183,25 @@ export interface LapState {
 }
 
 /** 앞차와 이 간격 미만이면 더티 에어 (wearPerLap의 dirtyAir 인자와 같은 판정). */
+/**
+ * 랩 안에서의 진행 (리플레이용): progress[i] = 출발선에서 samples[i]까지 걸린 시간 / 랩 시간. progress[0] = 0, 단조 증가, 1 미만.
+ * 레이스 로그에는 랩 시간만 있으므로, 렌더러는 이 곡선으로 랩 안의 위치를 보간한다 (코너에서 느리게, 직선에서 빠르게).
+ */
+export function lapProgress(perf: DerivedPerf, track: Track, surface: Surface, regs: Regulations): number[] {
+  const { speed } = lapTrace(perf, track, surface, regs);
+  const n = speed.length;
+  const ds = track.step_m;
+  const cum = new Array<number>(n).fill(0);
+  let t = 0;
+  for (let i = 0; i < n; i++) {
+    cum[i] = t;
+    const a = speed[i] ?? 0;
+    const b = speed[(i + 1) % n] ?? 0;
+    t += (2 * ds) / (a + b);
+  }
+  return cum.map((c) => c / t);
+}
+
 export function inDirtyAir(gapAheadS: number, regs: Regulations): boolean {
   return gapAheadS < regs.laptime.dirty_air.gap_s;
 }
