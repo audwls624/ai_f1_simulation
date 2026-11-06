@@ -14,7 +14,10 @@ import { describe, expect, it } from 'vitest';
 import { ToolBudgetError, ToolInputError, makeDesignTools } from '../src/tools.js';
 
 const data = new URL('../../../data/', import.meta.url);
-const regs = parseRegulations(readFileSync(new URL('regulations/2026.yaml', data), 'utf8'));
+const regs = parseRegulations(
+  readFileSync(new URL('regulations/2026.yaml', data), 'utf8'),
+  readFileSync(new URL('model/2026.yaml', data), 'utf8'),
+);
 const tracks: Track[] = ['fast-oval', 'mixed', 'tight-street'].map((id) =>
   parseTrack(
     readFileSync(new URL(`tracks/${id}.csv`, data), 'utf8'),

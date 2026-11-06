@@ -158,117 +158,228 @@ const CarModelSchema = z.strictObject({
   }),
 });
 
-export const RegulationsSchema = z
-  .strictObject({
-    season: z.int(),
-    cost: CostSchema,
-    limits: z.strictObject({
-      fuel_flow_kg_per_h: positive,
-      min_weight_kg: positive,
-      weight_reduction_span_kg: nonNegative,
-    }),
-    tools: z.strictObject({
-      wind_tunnel: z.strictObject({
-        runs_preseason: count,
-        noise_sd_s: nonNegative,
-        wear_compound: CompoundSchema,
-      }),
-      strategy_sim: z.strictObject({ runs_per_gp: count }),
-    }),
-    points: z.array(nonNegative).min(1),
-    penalties: z.strictObject({
-      dry_compound_rule_s: nonNegative,
-      resubmissions: count,
-      response_timeout_s: positive,
-    }),
-    fallback: z.strictObject({ spec: CarSpecSchema }),
-    tires: z.strictObject({
-      allocation_sets: z.record(CompoundSchema, count),
-      qualifying: z.strictObject({ compound: CompoundSchema, sets: positiveCount }),
-      dry_race_min_compounds: positiveCount,
-      compounds: z.record(CompoundSchema, CompoundRulesSchema),
-      degradation: z.strictObject({
-        linear_max_s: nonNegative,
-        cliff_base_s: nonNegative,
-        cliff_slope_s: nonNegative,
-      }),
-      downforce_wear_relief: fraction,
-      dirty_air_wear: nonNegative,
-      compound_warmup_penalty_s: nonNegative,
-    }),
-    pace_modes: z.record(PaceModeSchema, PaceModeRulesSchema),
-    fuel: z.strictObject({
-      reserve_kg: nonNegative,
-      lap_time_per_kg_s: nonNegative,
-    }),
-    laptime: z.strictObject({
-      noise_sd_s: nonNegative,
-      surface_grip: z.record(SurfaceSchema, positive),
-      straight_step_m: positive,
-      braking_decel_m_s2: positive,
-      traction_share: fraction,
-      dirty_air: z.strictObject({ gap_s: positive, corner_time_factor: nonNegative }),
-    }),
-    track: z.strictObject({
-      resample_step_m: positive,
-      straight_max_curvature: positive,
-      corner_classes: z.strictObject({ low_max_radius_m: positive, mid_max_radius_m: positive }),
-      overtake_reference_straight_m: positive,
-    }),
-    physics: z.strictObject({
-      gravity_m_s2: positive,
-      air_density_kg_m3: positive,
-    }),
-    car: CarModelSchema,
-  })
-  .superRefine((r, ctx) => {
-    const fallbackCost = specCost(r.fallback.spec, r.cost);
-    if (fallbackCost > r.cost.cap_credits + COST_EPSILON) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['fallback', 'spec'],
-        message: `the fallback spec costs ${credits(fallbackCost)} credits, over the cost cap of ${r.cost.cap_credits}`,
-      });
-    }
-    const q = r.tires.qualifying;
-    if (q.sets > r.tires.allocation_sets[q.compound]) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['tires', 'qualifying', 'sets'],
-        message: `qualifying uses ${q.sets} ${q.compound} sets but only ${r.tires.allocation_sets[q.compound]} are allocated`,
-      });
-    }
-    if (r.tires.dry_race_min_compounds > DRY_COMPOUNDS.length) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['tires', 'dry_race_min_compounds'],
-        message: `cannot require more than ${DRY_COMPOUNDS.length} dry compounds`,
-      });
-    }
-    const classes = r.track.corner_classes;
-    if (classes.mid_max_radius_m <= classes.low_max_radius_m) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['track', 'corner_classes', 'mid_max_radius_m'],
-        message: 'must be larger than low_max_radius_m',
-      });
-    }
-    if (r.car.cooling.full_cooling_at_c <= r.car.cooling.derate_from_c) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['car', 'cooling', 'full_cooling_at_c'],
-        message: 'must be higher than derate_from_c',
-      });
-    }
-  });
+const intPair = z.tuple([z.int().min(0), z.int().min(0)]);
 
+/**
+ * 공개 규정 (data/regulations/<season>.yaml): 팀이 알고 계획하는 규칙. 정보 패킷의 "규정 전문"은 이것만이다.
+ * 3절 코스트·제약·툴·포인트·벌점, 6절 타이어·페이스·연료, 7절 세이프티카·엔진 폴백, 5절 노면 전이·예보 창, 8절 DSL 제한.
+ */
+const rulesShape = {
+  season: z.int(),
+  cost: CostSchema,
+  limits: z.strictObject({
+    fuel_flow_kg_per_h: positive,
+    min_weight_kg: positive,
+    weight_reduction_span_kg: nonNegative,
+  }),
+  tools: z.strictObject({
+    wind_tunnel: z.strictObject({
+      runs_preseason: count,
+      noise_sd_s: nonNegative,
+      wear_compound: CompoundSchema,
+    }),
+    strategy_sim: z.strictObject({ runs_per_gp: count, default_samples: positiveCount }),
+  }),
+  points: z.array(nonNegative).min(1),
+  penalties: z.strictObject({
+    dry_compound_rule_s: nonNegative,
+    resubmissions: count,
+    response_timeout_s: positive,
+  }),
+  fallback: z.strictObject({ spec: CarSpecSchema }),
+  tires: z.strictObject({
+    allocation_sets: z.record(CompoundSchema, count),
+    qualifying: z.strictObject({ compound: CompoundSchema, sets: positiveCount }),
+    dry_race_min_compounds: positiveCount,
+    compounds: z.record(CompoundSchema, CompoundRulesSchema),
+    degradation: z.strictObject({
+      linear_max_s: nonNegative,
+      cliff_base_s: nonNegative,
+      cliff_slope_s: nonNegative,
+    }),
+    downforce_wear_relief: fraction,
+    dirty_air_wear: nonNegative,
+    compound_warmup_penalty_s: nonNegative,
+  }),
+  pace_modes: z.record(PaceModeSchema, PaceModeRulesSchema),
+  fuel: z.strictObject({
+    reserve_kg: nonNegative,
+    lap_time_per_kg_s: nonNegative,
+  }),
+  safety_car: z.strictObject({
+    duration_laps: intPair,
+    lap_time_mult: positive,
+    gap_s: nonNegative,
+    pit_loss_mult: nonNegative,
+  }),
+  surface: z.strictObject({
+    damp_after_rain_laps: positiveCount,
+    wet_after_rain_laps: positiveCount,
+  }),
+  forecast: z.strictObject({ window_laps: positiveCount }),
+  engine_fallbacks: z.strictObject({
+    tire_out_extra_s: nonNegative,
+    wrong_tire_laps: positiveCount,
+    compound_rule_laps_left: positiveCount,
+  }),
+  strategy: z.strictObject({
+    max_variants: positiveCount,
+    max_rules: positiveCount,
+    max_stints: positiveCount,
+    max_conditions: positiveCount,
+  }),
+};
+
+/**
+ * 엔진 모델 (data/model/<season>.yaml): 엔진 안쪽의 물리·확률 계수. 에이전트에게 주지 않는다
+ * (4절: 파생치는 풍동으로만 간접 노출, 5절: 세그먼트 원본 비공개).
+ */
+const modelShape = {
+  season: z.int(),
+  laptime: z.strictObject({
+    noise_sd_s: nonNegative,
+    surface_grip: z.record(SurfaceSchema, positive),
+    straight_step_m: positive,
+    braking_decel_m_s2: positive,
+    traction_share: fraction,
+    dirty_air: z.strictObject({ gap_s: positive, corner_time_factor: nonNegative }),
+  }),
+  track: z.strictObject({
+    resample_step_m: positive,
+    straight_max_curvature: positive,
+    corner_classes: z.strictObject({ low_max_radius_m: positive, mid_max_radius_m: positive }),
+    overtake_reference_straight_m: positive,
+  }),
+  physics: z.strictObject({
+    gravity_m_s2: positive,
+    air_density_kg_m3: positive,
+  }),
+  car: CarModelSchema,
+  qualifying: z.strictObject({ noise_sd_s: nonNegative }),
+  start: z.strictObject({ noise_sd_positions: nonNegative }),
+  weather: z.strictObject({
+    forecast_noise_sd: nonNegative,
+    forecast_persistence: fraction,
+    rain_duration_laps: intPair,
+  }),
+  overtaking: z.strictObject({
+    gap_s: positive,
+    bias: finite,
+    pace: nonNegative,
+    drs: nonNegative,
+    ers: nonNegative,
+    dirty_air_resistance: nonNegative,
+    difficulty: nonNegative,
+    defense: nonNegative,
+    fail_gap_s: nonNegative,
+    pass_margin_s: nonNegative,
+  }),
+  failures: z.strictObject({ heat_mult_per_derate: nonNegative, sc_mult_after_failure: positive }),
+  ers_battery: z.strictObject({
+    capacity_mj: pairOf(positive),
+    per_lap_mj: z.record(ErsModeSchema, finite),
+    overtake_mj: nonNegative,
+  }),
+};
+
+type Ctx = z.core.$RefinementCtx;
+
+function checkRules(r: z.infer<z.ZodObject<typeof rulesShape>>, ctx: Ctx): void {
+  const fallbackCost = specCost(r.fallback.spec, r.cost);
+  if (fallbackCost > r.cost.cap_credits + COST_EPSILON) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['fallback', 'spec'],
+      message: `the fallback spec costs ${credits(fallbackCost)} credits, over the cost cap of ${r.cost.cap_credits}`,
+    });
+  }
+  const q = r.tires.qualifying;
+  if (q.sets > r.tires.allocation_sets[q.compound]) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['tires', 'qualifying', 'sets'],
+      message: `qualifying uses ${q.sets} ${q.compound} sets but only ${r.tires.allocation_sets[q.compound]} are allocated`,
+    });
+  }
+  if (r.tires.dry_race_min_compounds > DRY_COMPOUNDS.length) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['tires', 'dry_race_min_compounds'],
+      message: `cannot require more than ${DRY_COMPOUNDS.length} dry compounds`,
+    });
+  }
+  if (r.safety_car.duration_laps[1] < r.safety_car.duration_laps[0]) {
+    ctx.addIssue({ code: 'custom', path: ['safety_car', 'duration_laps'], message: 'must be [shortest, longest]' });
+  }
+  if (r.surface.wet_after_rain_laps <= r.surface.damp_after_rain_laps) {
+    ctx.addIssue({ code: 'custom', path: ['surface', 'wet_after_rain_laps'], message: 'must be later than damp_after_rain_laps' });
+  }
+}
+
+function checkModel(m: z.infer<z.ZodObject<typeof modelShape>>, ctx: Ctx): void {
+  const classes = m.track.corner_classes;
+  if (classes.mid_max_radius_m <= classes.low_max_radius_m) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['track', 'corner_classes', 'mid_max_radius_m'],
+      message: 'must be larger than low_max_radius_m',
+    });
+  }
+  if (m.car.cooling.full_cooling_at_c <= m.car.cooling.derate_from_c) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['car', 'cooling', 'full_cooling_at_c'],
+      message: 'must be higher than derate_from_c',
+    });
+  }
+  if (m.weather.rain_duration_laps[1] < m.weather.rain_duration_laps[0]) {
+    ctx.addIssue({ code: 'custom', path: ['weather', 'rain_duration_laps'], message: 'must be [shortest, longest]' });
+  }
+}
+
+/** 공개 규정 스키마 — 정보 패킷의 "규정 전문" (9절). */
+export const RulesSchema = z.strictObject(rulesShape).superRefine(checkRules);
+export type Rules = z.infer<typeof RulesSchema>;
+
+/** 엔진 모델 스키마 (비공개). */
+export const ModelSchema = z.strictObject(modelShape).superRefine(checkModel);
+export type EngineModel = z.infer<typeof ModelSchema>;
+
+/** 엔진이 쓰는 전체: 공개 규정 + 엔진 모델 (두 파일을 합친 것). */
+export const RegulationsSchema = z
+  .strictObject({ ...rulesShape, ...modelShape })
+  .superRefine((r, ctx) => {
+    checkRules(r, ctx);
+    checkModel(r, ctx);
+  });
 export type Regulations = z.infer<typeof RegulationsSchema>;
+
+/** 공개 규정만 꺼낸다 (엔진 모델 키는 빠진다). 패킷에 넣을 때 쓴다. */
+export function publicRules(regs: Regulations): Rules {
+  return RulesSchema.parse({
+    season: regs.season,
+    cost: regs.cost,
+    limits: regs.limits,
+    tools: regs.tools,
+    points: regs.points,
+    penalties: regs.penalties,
+    fallback: regs.fallback,
+    tires: regs.tires,
+    pace_modes: regs.pace_modes,
+    fuel: regs.fuel,
+    safety_car: regs.safety_car,
+    surface: regs.surface,
+    forecast: regs.forecast,
+    engine_fallbacks: regs.engine_fallbacks,
+    strategy: regs.strategy,
+  });
+}
 
 export class RegulationsError extends Error {
   readonly issues: readonly ValidationIssue[];
 
-  constructor(issues: readonly ValidationIssue[]) {
-    super(`invalid regulations:\n${issues.map((i) => `  - ${formatIssue(i)}`).join('\n')}`);
+  constructor(issues: readonly ValidationIssue[], source = 'regulations') {
+    super(`invalid ${source}:\n${issues.map((i) => `  - ${formatIssue(i)}`).join('\n')}`);
     this.name = 'RegulationsError';
     this.issues = issues;
   }
@@ -287,13 +398,28 @@ export function yamlToJs(yamlText: string): Result<unknown, ValidationIssue[]> {
   return { ok: true, value: doc.toJS() };
 }
 
-/** yaml 텍스트 → 검증된 Regulations. 잘못되면 모든 문제를 담은 RegulationsError를 던진다. */
-export function parseRegulations(yamlText: string): Regulations {
+function parseFile<T>(yamlText: string, schema: z.ZodType<T>, source: string): T {
   const raw = yamlToJs(yamlText);
-  if (!raw.ok) throw new RegulationsError(raw.issues);
-  const parsed = RegulationsSchema.safeParse(raw.value, { reportInput: true });
-  if (!parsed.success) throw new RegulationsError(toIssues(parsed.error.issues, RegulationsSchema));
+  if (!raw.ok) throw new RegulationsError(raw.issues, source);
+  const parsed = schema.safeParse(raw.value, { reportInput: true });
+  if (!parsed.success) throw new RegulationsError(toIssues(parsed.error.issues, schema), source);
   return parsed.data;
+}
+
+/**
+ * 공개 규정 yaml + 엔진 모델 yaml → 검증된 Regulations. 두 파일의 season이 같아야 한다.
+ * 잘못되면 모든 문제를 담은 RegulationsError (어느 파일인지 메시지에 표시).
+ */
+export function parseRegulations(rulesYaml: string, modelYaml: string): Regulations {
+  const rules = parseFile(rulesYaml, RulesSchema, 'regulations (rules)');
+  const model = parseFile(modelYaml, ModelSchema, 'regulations (engine model)');
+  if (rules.season !== model.season) {
+    throw new RegulationsError(
+      [{ path: 'season', message: `rules are for ${rules.season} but the engine model is for ${model.season}` }],
+      'regulations',
+    );
+  }
+  return RegulationsSchema.parse({ ...rules, ...model });
 }
 
 // ── 비용 (3절) ─────────────────────────────────────────────────────────
@@ -310,7 +436,7 @@ function specCost(spec: CarSpec, rules: CostRules): number {
 }
 
 /** 스펙의 총 비용 (크레딧) = Σ w_i · x_i^p. 아키텍처 선택은 비용 0. */
-export function cost(spec: CarSpec, regs: Regulations): number {
+export function cost(spec: CarSpec, regs: Pick<Regulations, 'cost'>): number {
   return specCost(spec, regs.cost);
 }
 
@@ -342,7 +468,7 @@ function budgetIssue(spec: CarSpec, total: number, rules: CostRules): Validation
  * 제출된 스펙 검증: 스키마(필드·타입·범위, 알 수 없는 필드 거부) → 규정(코스트 캡).
  * 스키마 오류가 있으면 비용은 계산하지 않는다. 한 번에 고칠 수 있게 스키마 오류는 전부 모아 돌려준다.
  */
-export function validateSpec(spec: unknown, regs: Regulations): Result<CarSpec, ValidationIssue[]> {
+export function validateSpec(spec: unknown, regs: Pick<Regulations, 'cost'>): Result<CarSpec, ValidationIssue[]> {
   const parsed = CarSpecSchema.safeParse(spec, { reportInput: true });
   if (!parsed.success) return { ok: false, issues: toIssues(parsed.error.issues, CarSpecSchema) };
   const total = cost(parsed.data, regs);

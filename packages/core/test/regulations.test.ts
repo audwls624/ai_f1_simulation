@@ -6,10 +6,11 @@ import {
   cost,
   formatIssue,
   parseRegulations,
+  publicRules,
   validateSpec,
   type ValidationIssue,
 } from '../src/regulations.js';
-import { docExampleSpec, regs, regsYaml, specArb, uniformSpec, withSpec } from './helpers.js';
+import { docExampleSpec, modelYaml, regs, rulesYaml, specArb, uniformSpec, withSpec } from './helpers.js';
 
 function issuesOf(input: unknown): ValidationIssue[] {
   const r = validateSpec(input, regs);
@@ -17,9 +18,9 @@ function issuesOf(input: unknown): ValidationIssue[] {
   return r.issues;
 }
 
-function regsError(yamlText: string): RegulationsError {
+function regsError(rulesText: string, modelText = modelYaml): RegulationsError {
   try {
-    parseRegulations(yamlText);
+    parseRegulations(rulesText, modelText);
   } catch (e) {
     if (e instanceof RegulationsError) return e;
     throw e;
@@ -41,6 +42,25 @@ function setAt(spec: unknown, path: string, value: unknown): Record<string, unkn
 }
 
 describe('parseRegulations (data/regulations/2026.yaml)', () => {
+  it('rejects unknown keys in the engine model file too, naming the file', () => {
+    const e = regsError(rulesYaml, `${modelYaml}\nturbo: 1\n`);
+    expect(e.issues).toEqual([expect.objectContaining({ path: 'turbo' })]);
+    expect(e.message).toContain('engine model');
+  });
+
+  it('rejects rules and model files from different seasons', () => {
+    expect(regsError(rulesYaml, modelYaml.replace(/^season: 2026$/m, 'season: 2027')).issues[0]?.path).toBe('season');
+  });
+
+  it('publicRules drops every engine model block', () => {
+    const pub = publicRules(regs) as Record<string, unknown>;
+    for (const key of ['car', 'laptime', 'physics', 'track', 'weather', 'overtaking', 'failures', 'ers_battery', 'qualifying', 'start']) {
+      expect(pub).not.toHaveProperty(key);
+    }
+    expect(pub).toHaveProperty('cost');
+    expect(pub).toHaveProperty('tires');
+  });
+
   it('parses the season file', () => {
     expect(regs.season).toBe(2026);
     expect(regs.cost.cap_credits).toBe(100);
@@ -61,29 +81,29 @@ describe('parseRegulations (data/regulations/2026.yaml)', () => {
   });
 
   it('rejects unknown keys with a path to the key', () => {
-    const top = regsError(`${regsYaml}\nturbo_boost: 3\n`);
+    const top = regsError(`${rulesYaml}\nturbo_boost: 3\n`);
     expect(top.issues).toContainEqual(expect.objectContaining({ path: 'turbo_boost' }));
 
-    const nested = regsError(regsYaml.replace('  fuel_flow_kg_per_h: 100', '  fuel_flow_kg_per_h: 100\n  boost_kw: 50'));
+    const nested = regsError(rulesYaml.replace('  fuel_flow_kg_per_h: 100', '  fuel_flow_kg_per_h: 100\n  boost_kw: 50'));
     expect(nested.issues).toEqual([expect.objectContaining({ path: 'limits.boost_kw' })]);
     expect(nested.issues[0]?.message).toContain('fuel_flow_kg_per_h');
   });
 
   it('rejects missing or out-of-range values with a path', () => {
-    const missing = regsError(regsYaml.replace(/^ {2}min_weight_kg: 798.*$/m, ''));
+    const missing = regsError(rulesYaml.replace(/^ {2}min_weight_kg: 798.*$/m, ''));
     expect(missing.issues).toEqual([expect.objectContaining({ path: 'limits.min_weight_kg' })]);
 
-    const badCompound = regsError(regsYaml.replace('cliff_life: 0.25', 'cliff_life: 1.5'));
+    const badCompound = regsError(rulesYaml.replace('cliff_life: 0.25', 'cliff_life: 1.5'));
     expect(badCompound.issues).toEqual([expect.objectContaining({ path: 'tires.compounds.soft.cliff_life' })]);
   });
 
   it('rejects an unknown compound in a compound table', () => {
-    const e = regsError(regsYaml.replace('{ soft: 8, medium: 3,', '{ soft: 8, supersoft: 1, medium: 3,'));
+    const e = regsError(rulesYaml.replace('{ soft: 8, medium: 3,', '{ soft: 8, supersoft: 1, medium: 3,'));
     expect(e.issues).toContainEqual(expect.objectContaining({ path: 'tires.allocation_sets.supersoft' }));
   });
 
   it('checks cross-field rules (fallback spec within the cap)', () => {
-    const e = regsError(regsYaml.replace('cap_credits: 100', 'cap_credits: 40'));
+    const e = regsError(rulesYaml.replace('cap_credits: 100', 'cap_credits: 40'));
     expect(e.issues).toEqual([expect.objectContaining({ path: 'fallback.spec' })]);
     expect(e.message).toContain('fallback');
   });

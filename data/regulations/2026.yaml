@@ -1,9 +1,9 @@
-# f1sim 2026 시즌 규정 — docs/DESIGN.md 3·4·6절의 숫자.
+# f1sim 2026 시즌 공개 규정 — 팀이 알고 계획하는 규칙 (DESIGN.md 3·5·6·7·8절의 숫자).
+# 정보 패킷의 "규정 전문"은 이 파일뿐이다. 엔진 안쪽 계수는 data/model/2026.yaml (비공개).
 #
-# - 모든 키는 RegulationsSchema(strict)가 검증한다. 알 수 없는 키·빠진 키는 거부.
+# - 모든 키는 RulesSchema(strict)가 검증한다. 알 수 없는 키·빠진 키는 거부.
 # - `TODO(balance)`: 문서에 값이 없어 정한 출발값. 밸런스 하네스(12절)가 조정한다.
 #   표시가 없는 값은 문서에 적힌 값 그대로다.
-# - `[a, b]` 쌍: 해당 스펙 파라미터가 0.0일 때 a, 1.0일 때 b (선형 보간). wing 관련은 wing_level/10 기준.
 #
 # 시즌 중 업그레이드 윈도우(2·3절: GP 8·16 직전, 풍동 5회)는 9절 인터페이스(designCar·planGp만)와
 # 아직 맞지 않아 넣지 않았다. 유지하기로 하면 tools에 wind_tunnel_runs_per_upgrade_window: 5를 추가한다.
@@ -40,6 +40,7 @@ tools:
     wear_compound: medium       # 9절 "마모율 추정"을 보고할 기준 컴파운드 (normal 페이스, 깨끗한 공기)
   strategy_sim:
     runs_per_gp: 5
+    default_samples: 20         # 9절 strategySim(plan, nSamples?)의 기본 시드 수. TODO(balance)
 
 # 3절: 1–10위. 패스티스트 랩 포인트 없음
 points: [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]
@@ -120,106 +121,32 @@ fuel:
   reserve_kg: 2                 # 시작 연료 = 랩 수 × 랩당 연료 + 여유
   lap_time_per_kg_s: 0.03       # 연료 kg당 랩타임 (F1 통상값)
 
-# ── 6절: 랩타임 ─────────────────────────────────────────────────────────
-laptime:
-  noise_sd_s: 0.12              # 레이스 랩 노이즈 σ (노이즈는 호출자가 rng로 만든다)
-  surface_grip: { dry: 1.0, damp: 0.8, wet: 0.65 }   # 노면별 μ 승수 (코너·트랙션·제동 모두)
-  straight_step_m: 5            # 직선 수치 적분 간격 Δs
-  braking_decel_m_s2: 40        # TODO(balance): 6절 "제동 감속도 상수" (약 4 g, 노면 승수 적용)
-  traction_share: 0.5           # TODO(balance): 6절 코너 출구 트랙션. 구동력 ≤ 이 비율 × μ_eff × 수직하중
-  dirty_air:                    # raceLap의 dirty_air(gap_ahead, dirty_air_loss)
-    gap_s: 1.0                  # 앞차와 이 간격 미만이면 더티 에어 (7절 추월 판정 갭과 같은 값)
-    corner_time_factor: 0.1     # TODO(balance): 손실률 1.0이면 코너 구간 시간 +10%
+# ── 7절: 세이프티카 ─────────────────────────────────────────────────────
+safety_car:
+  duration_laps: [3, 5]         # 발동 시 지속 랩 (균등)
+  lap_time_mult: 1.4            # 세이프티카 중 랩타임 ×1.4
+  gap_s: 1.0                    # 세이프티카 중 앞차와 갭 1.0 s로 압축
+  pit_loss_mult: 0.5            # 세이프티카 중 피트 손실 ×0.5
 
-# ── 5절: 트랙 세그먼트 파생 ─────────────────────────────────────────────
-track:
-  resample_step_m: 5            # 센터라인 호길이 재샘플링 간격
-  straight_max_curvature: 0.002 # TODO(balance): 곡률(1/m)이 이보다 작으면 직선 (반경 500 m 이상)
-  corner_classes: { low_max_radius_m: 50, mid_max_radius_m: 150 }   # 반경 < 50 저속, 50–150 중속, > 150 고속
-  overtake_reference_straight_m: 1500   # TODO(balance): overtake_difficulty = 1 − 최장 직선/이 값 (0–1로 자름)
+# ── 5절: 노면 전이 ─────────────────────────────────────────────────────
+# 젖음 카운터: 비 오는 랩마다 +1, 마른 랩마다 −1 (0–wet 사이). 카운터 ≥ damp면 damp, ≥ wet면 wet.
+# 강우 시작 후 2랩에 damp, 5랩에 wet. 그친 뒤에는 역순으로 마른다.
+surface:
+  damp_after_rain_laps: 2
+  wet_after_rain_laps: 5
 
-# 6절 식의 물리 상수
-physics:
-  gravity_m_s2: 9.81
-  air_density_kg_m3: 1.2
+forecast:
+  window_laps: 10               # 5절: 10랩 윈도우별 강우 확률
 
-# ── 4절: 파생 성능치 계수 (derive) ─────────────────────────────────────
-# 문서는 방향(올리면/대가)만 정하고 크기는 비워 뒀다 → 대부분 TODO(balance).
-car:
-  power:
-    fuel_energy_mj_per_kg: 43                 # TODO(balance): 연료 발열량. 출력 = 연료 유량 × 발열량 × η
-    thermal_efficiency_eta: [0.445, 0.515]    # TODO(balance): thermal_efficiency → 열효율 η (약 530–615 kW)
-    reliability_power_loss: 0.02              # TODO(balance): reliability 1.0이면 출력 −2% (보수적 맵)
+# ── 7절: 엔진 폴백 (팀 규칙보다 먼저, 항상) ─────────────────────────────
+engine_fallbacks:
+  tire_out_extra_s: 10          # tire life ≤ 0 → 강제 피트, 그 랩 +10 s
+  wrong_tire_laps: 3            # wet 노면 드라이 타이어 / dry 노면 inter·wet 타이어가 이만큼 지속되면 강제 교체
+  compound_rule_laps_left: 5    # 남은 랩 ≤ 5인데 2종 컴파운드 미충족 → 강제 피트
 
-  cooling:                                    # 4절 상호작용 1: cooling × 기온
-    derate_from_c: 30                         # 이 기온 이상에서 디레이팅 (문서값)
-    full_cooling_at_c: 45                     # TODO(balance): 이 기온이면 cooling 1.0이 있어야 디레이팅 0
-    max_derate: 0.08                          # TODO(balance): 냉각 부족분 1.0일 때 출력 −8%
-    drag_at_full: 0.04                        # TODO(balance): cooling 1.0의 라디에이터 개구부 → 드래그 +4%
-
-  mass:
-    battery_kg_at_full_ers: 6                 # TODO(balance): ers_capacity 1.0의 배터리 추가 무게
-
-  ers:
-    boost: [0.2, 1.0]                         # TODO(balance): ers_capacity → 추월·방어 보너스 (무차원)
-    # power_kw: 랩 평균 출력 가감. depletion: ers_capacity 0.0에서 에너지 고갈로 잃는 비율 (1.0이면 0).
-    # boost_mult: 추월·방어 보너스 승수.
-    # 문서에는 harvest의 이점이 없다 → 현재 harvest는 balanced에 지배된다 (밸런스·설계 결정 필요).
-    modes:                                    # TODO(balance): 전부
-      harvest:  { power_kw: -20, depletion: 0.0,  boost_mult: 0.5 }
-      balanced: { power_kw: 0,   depletion: 0.0,  boost_mult: 1.0 }
-      attack:   { power_kw: 60,  depletion: 0.75, boost_mult: 1.5 }
-
-  aero:
-    downforce_area_m2: [3.0, 5.0]             # TODO(balance): wing_level 0 → 10의 Cl·A
-    drag_area_m2: [1.0, 2.0]                  # TODO(balance): wing_level 0 → 10의 Cd·A
-    downforce_curve_exponent: 0.6             # TODO(balance): < 1이면 윙을 올릴수록 다운포스 증가폭이 준다
-    drag_curve_exponent: 2.0                  # TODO(balance): > 1이면 윙을 올릴수록 L/D 악화 (효율 곡선)
-    aero_grip_mu: 1.5                         # TODO(balance): 다운포스 하중에 대한 타이어 마찰계수
-    efficiency_drag_cut: 0.20                 # TODO(balance): aero_efficiency 1.0이면 같은 다운포스에서 드래그 −20%
-    drs_gain: [0.08, 0.28]                    # TODO(balance): drs_effect → DRS 개방 시 드래그 감소율
-    drs_drag_cost: 0.005                      # TODO(balance): drs_effect 1.0의 효율 손실 (상시 드래그 +0.5%)
-    dirty_air_loss: [0.35, 0.12]              # TODO(balance): dirty_air_resistance → 앞차 뒤 다운포스 손실률
-    # [philosophy][ride_height] 다운포스·드래그 승수. floor는 low에서만 효율을 낸다 (셋업 윈도우가 좁다).
-    ride_height:                              # TODO(balance): 전부
-      floor:
-        low:  { downforce: 1.05, drag: 0.985 }
-        mid:  { downforce: 0.98, drag: 1.00 }
-        high: { downforce: 0.92, drag: 1.00 }
-      wing:
-        low:  { downforce: 1.00, drag: 1.00 }
-        mid:  { downforce: 0.98, drag: 1.00 }
-        high: { downforce: 0.95, drag: 1.00 }
-
-  chassis:
-    mech_grip_mu: [1.580, 1.620]              # TODO(balance): mech_grip → 기계적 마찰계수 μ
-    load_sensitivity: 0.3                     # TODO(balance): μ × (최소 무게 / 무게)^이 값 — 타이어 하중 민감도
-    wheelbase:                                # TODO(balance): long = 고속 안정·에어로 플랫폼, short = 저속 민첩 (M2: 캘린더를 반씩 나눔)
-      long:  { downforce: 1.025, mech_grip: 1.00 }
-      short: { downforce: 1.00, mech_grip: 1.016 }
-
-  instability:
-    bumpy_from: 0.4                           # TODO(balance): bumpiness가 이 값 이상이면 범피 트랙
-    floor_min_mech_grip: 0.5                  # 4절 상호작용 2: floor × mech_grip < 0.5 → 불안정
-    floor:                                    # floor × (mech_grip < 0.5 또는 범피 트랙)
-      downforce_loss: 0.06                    # TODO(balance): "랩타임 +"를 다운포스 손실로 표현
-      wear_mult: 1.15                         # 문서값
-    # 범피 트랙에서 low ride height 불안정. 심각도 = (bumpiness − bumpy_from)/(1 − bumpy_from) × 민감도.
-    low_ride_on_bumps:
-      ride_height_sensitivity: { low: 1.0, mid: 0.3, high: 0.0 }  # TODO(balance): 문서는 low만 언급
-      philosophy_sensitivity: { floor: 1.0, wing: 0.5 }          # TODO(balance): floor가 범프에 민감 (4절)
-      downforce_loss: 0.35                    # TODO(balance): 심각도 1.0일 때 다운포스 손실
-      mech_grip_loss: 0.05                    # TODO(balance): 심각도 1.0일 때 기계적 그립 손실
-
-  tire_management:
-    deg_multiplier: [1.0, 0.6]                # 6절: tire_management → 마모 승수
-    warmup_penalty_s: [0.0, 0.5]              # TODO(balance): 워밍업 페널티 크기 (s/lap)
-    warmup_laps: { qualifying: 1, race: 2 }   # 4절: 예선 1랩, 레이스 초반 2랩에 페널티
-
-  reliability:
-    failure_rate_per_lap: [0.003, 0.0004]     # TODO(balance): reliability → 랩당 고장 확률 (기온·페이스 승수 전)
-    thermal_efficiency_failure: 0.25          # TODO(balance): thermal_efficiency 1.0이면 고장률 ×1.25 ("소폭↑")
-
-  fuel:
-    per_km_kg: 0.32                           # TODO(balance): normal 페이스 랩당 연료 = 길이(km) × 이 값 × (1 − 절감)
-    thermal_efficiency_saving: 0.08           # TODO(balance): thermal_efficiency 1.0이면 랩당 연료 −8%
+# ── 8절: 전략 DSL 제한 ─────────────────────────────────────────────────
+strategy:
+  max_variants: 4
+  max_rules: 12                 # 변형마다
+  max_stints: 4
+  max_conditions: 4             # 규칙마다

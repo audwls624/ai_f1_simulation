@@ -5,7 +5,10 @@ import { heuristicDesign, representativeTrack, type DesignInputs } from '../src/
 import { makeDesignTools } from '../src/tools.js';
 
 const data = new URL('../../../data/', import.meta.url);
-const regs = parseRegulations(readFileSync(new URL('regulations/2026.yaml', data), 'utf8'));
+const regs = parseRegulations(
+  readFileSync(new URL('regulations/2026.yaml', data), 'utf8'),
+  readFileSync(new URL('model/2026.yaml', data), 'utf8'),
+);
 const ids = ['fast-oval', 'mixed', 'tight-street'];
 const tracks: Track[] = ids.map((id) =>
   parseTrack(readFileSync(new URL(`tracks/${id}.csv`, data), 'utf8'), parseTrackMeta(readFileSync(new URL(`tracks/${id}.yaml`, data), 'utf8')), regs),

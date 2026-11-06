@@ -109,12 +109,13 @@ describe('derive: powertrain directions (DESIGN.md §4)', () => {
     expect(hi.power_kw / lo.power_kw).toBeGreaterThan(0.97);
   });
 
-  it('ers_mode: attack > balanced > harvest for lap power and overtaking boost', () => {
+  it('ers_mode: attack > balanced > harvest for lap power; the boost depends on capacity, not mode', () => {
     const [h, b, a] = (['harvest', 'balanced', 'attack'] as const).map((ers_mode) => perf({}, { ers_mode }));
     expect(a?.power_kw).toBeGreaterThan(b?.power_kw ?? Infinity);
     expect(b?.power_kw).toBeGreaterThan(h?.power_kw ?? Infinity);
-    expect(a?.ers_boost).toBeGreaterThan(b?.ers_boost ?? Infinity);
-    expect(b?.ers_boost).toBeGreaterThan(h?.ers_boost ?? Infinity);
+    // 레이스에서 모드 차이는 배터리 잔량으로 난다 (model ers_battery).
+    expect(a?.ers_boost).toBe(b?.ers_boost);
+    expect(h?.ers_boost).toBe(b?.ers_boost);
   });
 
   it('attack depletes less with more ERS capacity; balanced lap power ignores capacity', () => {

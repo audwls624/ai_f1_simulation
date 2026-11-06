@@ -11,8 +11,12 @@ import { z } from 'zod';
 /** 레포의 data/ 디렉터리. */
 export const DATA_DIR = fileURLToPath(new URL('../../../data/', import.meta.url));
 
+/** 공개 규정(regulations/)과 엔진 모델(model/)을 함께 읽는다. */
 export function loadRegulations(season: number, dataDir = DATA_DIR): Regulations {
-  return parseRegulations(readFileSync(join(dataDir, 'regulations', `${season}.yaml`), 'utf8'));
+  return parseRegulations(
+    readFileSync(join(dataDir, 'regulations', `${season}.yaml`), 'utf8'),
+    readFileSync(join(dataDir, 'model', `${season}.yaml`), 'utf8'),
+  );
 }
 
 export function loadTrack(id: string, regs: Regulations, dataDir = DATA_DIR): Track {

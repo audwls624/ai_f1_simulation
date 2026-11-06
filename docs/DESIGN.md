@@ -37,7 +37,7 @@ AI 모델(나중에는 사람)이 팀이 되어, 같은 규정과 같은 정보�
 
 ## 3. 규정 (Regulations)
 
-규정은 코스트 캡 100 크레딧과 항목별 볼록 비용 곡선으로 설계 공간을 제한하고, 나머지는 연료 유량·최소 무게·타이어 의무 같은 고정 제약이다. 값은 전부 `regulations/2026.yaml` 한 파일에 두고 시즌 단위로만 바꾼다.
+규정은 코스트 캡 100 크레딧과 항목별 볼록 비용 곡선으로 설계 공간을 제한하고, 나머지는 연료 유량·최소 무게·타이어 의무 같은 고정 제약이다. 값은 시즌 단위로만 바꾸고 두 파일에 둔다: 팀이 알고 계획하는 공개 규정은 `regulations/2026.yaml`(정보 패킷의 "규정 전문"은 이것뿐), 엔진 안쪽의 물리·확률 계수는 `model/2026.yaml`(비공개 — 4절의 파생치·5절의 세그먼트처럼 풍동과 전략 시뮬로만 간접 노출).
 
 **코스트 캡과 비용 곡선**
 
@@ -624,7 +624,9 @@ f1sim/
     runner/                  # 시즌 실행 CLI. API 키는 여기만
     web/                     # Vite + Three.js: 리플레이, 리더보드, 사람 팀 UI (나중에)
   data/
-    regulations/2026.yaml
+    regulations/2026.yaml    # 공개 규정 (패킷에 들어감)
+    model/2026.yaml          # 엔진 모델 계수 (비공개)
+    calendar/2026.yaml
     tracks/*.csv  tracks/*.yaml
   docs/DESIGN.md             # 이 문서
   runs/                      # 시즌 출력 (gitignore)
@@ -771,7 +773,8 @@ export interface Rng {
 
 // regulations.ts
 export const RegulationsSchema: z.ZodType<Regulations>;
-export function parseRegulations(yamlText: string): Regulations;
+export function parseRegulations(rulesYaml: string, modelYaml: string): Regulations;  // 공개 규정 + 엔진 모델
+export function publicRules(regs: Regulations): Rules;                                // 패킷용 (엔진 모델 키 제외)
 export function cost(spec: CarSpec, regs: Regulations): number;
 export function validateSpec(spec: unknown, regs: Regulations): Result<CarSpec, ValidationIssue[]>;
 export function validateSetup(setup: unknown): Result<Setup, ValidationIssue[]>;

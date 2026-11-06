@@ -4,9 +4,9 @@ import type { CarSpec, DeriveTrackInput, Setup } from '../src/car.js';
 import { parseRegulations, type Regulations } from '../src/regulations.js';
 import { parseTrack, parseTrackMeta, type Track } from '../src/track.js';
 
-export const REGS_PATH = new URL('../../../data/regulations/2026.yaml', import.meta.url);
-export const regsYaml = readFileSync(REGS_PATH, 'utf8');
-export const regs: Regulations = parseRegulations(regsYaml);
+export const rulesYaml = readFileSync(new URL('../../../data/regulations/2026.yaml', import.meta.url), 'utf8');
+export const modelYaml = readFileSync(new URL('../../../data/model/2026.yaml', import.meta.url), 'utf8');
+export const regs: Regulations = parseRegulations(rulesYaml, modelYaml);
 
 /** M1 가상 서킷 (DESIGN.md 16절). */
 export const TRACK_IDS = ['fast-oval', 'mixed', 'tight-street'] as const;
