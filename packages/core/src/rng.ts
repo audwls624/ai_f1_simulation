@@ -129,6 +129,14 @@ export function makeRng(seed: number): Rng {
 }
 
 /**
+ * 시드 계층 (11절): 부모 시드 + key → 자식 정수 시드. 예) race_seed = deriveSeed(season_seed, 'gp:7').
+ * 로그에 정수로 남길 수 있고, makeRng(자식 시드)는 같은 스트림을 다시 만든다.
+ */
+export function deriveSeed(seed: number, key: string): number {
+  return Math.floor(makeRng(seed).spawn(key).next() * UINT32_RANGE);
+}
+
+/**
  * @internal 테스트 전용: 원시 상태에서 생성기를 만든다 (참조 구현과의 known-answer 비교용).
  * index.ts에서 내보내지 않는다.
  */

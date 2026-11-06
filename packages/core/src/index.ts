@@ -1,5 +1,5 @@
 // @f1sim/core 공개 API (DESIGN.md 16절). M1: rng, regulations, car, track, tires, laptime.
-export { makeRng, type Rng } from './rng.js';
+export { deriveSeed, makeRng, type Rng } from './rng.js';
 
 export {
   CompoundSchema,
@@ -116,3 +116,24 @@ export {
   type Stint,
   type VariantConditions,
 } from './strategy.js';
+
+export { runQualifying, type QualiEntry, type QualiResult } from './qualifying.js';
+
+export { gpForecast, runRace, type RaceEntry, type RaceInput } from './race.js';
+
+export {
+  AgentIOLogSchema,
+  LapCarSchema,
+  RaceEventLogSchema,
+  RaceLapSchema,
+  RaceLogSchema,
+  RaceResultSchema,
+  SeasonLogSchema,
+  StrategyTraceSchema,
+  shortHash,
+  type AgentIOLog,
+  type RaceEventLog,
+  type RaceLog,
+  type SeasonLog,
+  type StrategyTrace,
+} from './log.js';

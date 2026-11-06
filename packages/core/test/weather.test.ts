@@ -22,11 +22,14 @@ describe('makeForecast (DESIGN.md §5)', () => {
     expect(f.every((w) => w.temp_c === track.temp_mean)).toBe(true);
   });
 
-  it('is deterministic and centred on the track base probability', () => {
+  it('is deterministic; a race gets rain about rain_base_prob of the time', () => {
     expect(makeForecast(track, regs, makeRng(2))).toEqual(makeForecast(track, regs, makeRng(2)));
     const rng = makeRng(3);
-    const ps = Array.from({ length: 2000 }, () => makeForecast(track, regs, rng)).flatMap((f) => f.map((w) => w.rain_p));
-    expect(ps.reduce((s, p) => s + p, 0) / ps.length).toBeCloseTo(track.rain_base_prob, 1);
+    const races = 4000;
+    let wet = 0;
+    for (let i = 0; i < races; i++) if (realize(makeForecast(track, regs, rng), track, regs, rng).rain.length > 0) wet++;
+    expect(wet / races).toBeGreaterThan(track.rain_base_prob - 0.05);
+    expect(wet / races).toBeLessThan(track.rain_base_prob + 0.05);
   });
 });
 

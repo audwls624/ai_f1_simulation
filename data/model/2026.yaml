@@ -116,10 +116,11 @@ qualifying:
   noise_sd_s: 0.15              # quali_lap = base_lap(soft) + warmup_penalty_s + N(0, 0.15)
 start:
   noise_sd_positions: 0.8       # 1랩 진입 순서 = 그리드 + N(0, 0.8)으로 정렬
+  grid_gap_s: 0.25              # TODO(balance): 출발 순서 한 칸당 시작 시간 차
 
 # ── 5절: 날씨 예보·실현 ────────────────────────────────────────────────
 weather:
-  forecast_noise_sd: 0.15       # TODO(balance): 윈도우별 강우 확률 = 트랙 기본 확률 + 상관 노이즈
+  forecast_noise_sd: 0.8        # TODO(balance): 윈도우별 강우 확률의 로그정규 노이즈 σ (평균 보존)
   forecast_persistence: 0.6     # TODO(balance): 이웃 윈도우끼리 노이즈 상관 (AR(1))
   rain_duration_laps: [4, 14]   # TODO(balance): 실현된 비의 지속 랩 (균등)
 

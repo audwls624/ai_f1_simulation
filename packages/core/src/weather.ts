@@ -2,7 +2,7 @@
  * 날씨 (DESIGN.md 5절): 예보 → 실현 → 노면 상태.
  *
  * - 예보 (전략 제출 전 공개): 윈도우(rules.forecast.window_laps)별 강우 확률 + 기온.
- *   강우 확률 = 트랙 기본 확률 + 이웃 윈도우끼리 상관된 노이즈 (model.weather).
+ *   트랙 rain_base_prob = 레이스에 비가 올 확률. 윈도우마다 그 몫 + 상관된 로그정규 노이즈 (model.weather).
  * - 실현 (레이스 시드의 weather 스트림): 윈도우마다 그 확률로 비가 오고, 시작 랩은 윈도우 안에서 균등,
  *   지속은 model.weather.rain_duration_laps에서 균등. 기온은 레이스 시작 시 1회 N(temp_mean, temp_sd).
  * - 노면: 젖음 카운터 (비 오는 랩 +1, 마른 랩 −1). 카운터 ≥ damp면 damp, ≥ wet면 wet (rules.surface).
@@ -39,18 +39,25 @@ function clamp01(x: number): number {
   return Math.min(1, Math.max(0, x));
 }
 
-/** 예보. rng는 이 GP의 예보 전용 스트림. */
+/**
+ * 예보. rng는 이 GP의 예보 전용 스트림.
+ * 트랙의 rain_base_prob는 "레이스에 비가 올 확률"로 본다: 윈도우 W개면 윈도우당 평균 확률 m = 1 − (1 − p)^(1/W).
+ * 윈도우별 확률 = m × 로그정규 노이즈 (평균 보존, 이웃 윈도우끼리 AR(1) 상관).
+ */
 export function makeForecast(track: WeatherTrack, regs: Regulations, rng: Rng): Forecast {
   const size = regs.forecast.window_laps;
+  const windows = Math.ceil(track.laps / size);
+  const perWindow = 1 - (1 - track.rain_base_prob) ** (1 / windows);
   const { forecast_noise_sd: sd, forecast_persistence: rho } = regs.weather;
   const out: ForecastWindow[] = [];
   let noise = 0;
-  for (let first = 1, w = 0; first <= track.laps; first += size, w++) {
+  for (let w = 0; w < windows; w++) {
     const fresh = rng.normal(0, sd);
     noise = w === 0 ? fresh : rho * noise + Math.sqrt(1 - rho * rho) * fresh;
+    const first = w * size + 1;
     out.push({
       laps: [first, Math.min(track.laps, first + size - 1)],
-      rain_p: clamp01(track.rain_base_prob + noise),
+      rain_p: clamp01(perWindow * Math.exp(noise - (sd * sd) / 2)),
       temp_c: track.temp_mean,
     });
   }

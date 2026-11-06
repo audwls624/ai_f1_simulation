@@ -256,7 +256,7 @@ const modelShape = {
   }),
   car: CarModelSchema,
   qualifying: z.strictObject({ noise_sd_s: nonNegative }),
-  start: z.strictObject({ noise_sd_positions: nonNegative }),
+  start: z.strictObject({ noise_sd_positions: nonNegative, grid_gap_s: nonNegative }),
   weather: z.strictObject({
     forecast_noise_sd: nonNegative,
     forecast_persistence: fraction,
