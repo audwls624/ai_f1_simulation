@@ -70,3 +70,18 @@ export {
 export { degradation, tireOffset, warmupPenalty, wearPerLap } from './tires.js';
 
 export { baseLap, inDirtyAir, raceLap, type LapBreakdown, type LapState } from './laptime.js';
+
+export {
+  ForecastSchema,
+  ForecastWindowSchema,
+  RealizedWeatherSchema,
+  isDryRace,
+  isRaining,
+  makeForecast,
+  realize,
+  surfaceByLap,
+  type Forecast,
+  type ForecastWindow,
+  type RealizedWeather,
+  type WeatherTrack,
+} from './weather.js';
