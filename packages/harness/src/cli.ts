@@ -128,7 +128,7 @@ async function strategy(args: string[]): Promise<void> {
   writeFileSync(out, strategyReport(run, regs, date));
   const m = strategyMetrics(run);
   console.log(`metric 4 (strategy spread): min ${m.metric4.minRatio.toFixed(2)} pit losses ${m.metric4.pass ? 'pass' : 'FAIL'}`);
-  console.log(`metric 5 (luck): mean position sd ${m.metric5.meanSd.toFixed(2)} ${m.metric5.pass ? 'pass' : 'FAIL'}`);
+  console.log(`metric 5 (luck): heuristic-plan position sd ${m.metric5.meanSd.toFixed(2)} ${m.metric5.pass ? 'pass' : 'FAIL'} (random plans ${m.metric5.randomSd.toFixed(2)}, top 10% random ${m.metric5.topRandomSd.toFixed(2)})`);
   console.log(`metric 6 (fallbacks): ${m.metric6.fallbacks.toFixed(2)} per race ${m.metric6.pass ? 'pass' : 'FAIL'}`);
   console.log(`report: ${out} (${run.samples.length} races, ${((performance.now() - started) / 1000).toFixed(1)} s)`);
 }

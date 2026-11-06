@@ -11,6 +11,7 @@ import {
   pickDiverseSpecs,
   randomPlan,
   strategySpread,
+  topPlanSamples,
   type StrategySample,
 } from '../src/strategy.js';
 
@@ -79,6 +80,13 @@ describe('strategy metrics (DESIGN.md §12 metrics 4–6)', () => {
     const samples = [sample({ pos: 1 }), sample({ pos: 3, seed: 1 }), sample({ plan: 1, pos: 4 }), sample({ plan: 1, pos: 4, seed: 1, fallbacks: 2 })];
     expect(luck(samples)).toEqual([Math.SQRT2, 0]);
     expect(fallbacksPerRace(samples)).toBe(0.5);
+  });
+
+  it('topPlanSamples keeps only the best share of plans per (spec, track)', () => {
+    const samples = Array.from({ length: 10 }, (_, plan) => [0, 1].map((spec) => sample({ plan, spec, time: 5000 + (spec ? -plan : plan) }))).flat();
+    const top = topPlanSamples(samples, 0.2);
+    expect(top.filter((s) => s.spec === 0).map((s) => s.plan)).toEqual([0, 1]);
+    expect(top.filter((s) => s.spec === 1).map((s) => s.plan)).toEqual([8, 9]);
   });
 });
 

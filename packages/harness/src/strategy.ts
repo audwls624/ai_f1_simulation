@@ -203,6 +203,23 @@ export function strategySpread(samples: readonly StrategySample[], share = 0.1) 
   return out;
 }
 
+/** (스펙, 트랙)마다 평균 레이스 시간 기준 상위 share 플랜의 샘플만 (지표 5 참고값: "잘 짠" 랜덤 플랜). */
+export function topPlanSamples(samples: readonly StrategySample[], share = 0.1): StrategySample[] {
+  const keep = new Set<string>();
+  for (const cell of strategySpread(samples, share)) {
+    const plans = new Map<number, number[]>();
+    for (const s of samples) {
+      if (s.spec !== cell.spec || s.track !== cell.track || s.time === null) continue;
+      const times = plans.get(s.plan) ?? [];
+      times.push(s.time);
+      plans.set(s.plan, times);
+    }
+    const ranked = [...plans].map(([plan, times]) => ({ plan, t: mean(times) })).sort((a, b) => a.t - b.t || a.plan - b.plan);
+    for (const r of ranked.slice(0, Math.max(1, Math.floor(ranked.length * share)))) keep.add(`${cell.spec}/${cell.track}/${r.plan}`);
+  }
+  return samples.filter((s) => keep.has(`${s.spec}/${s.track}/${s.plan}`));
+}
+
 /** (스펙, 플랜, 트랙)마다 시드별 순위 표준편차 (지표 5). */
 export function luck(samples: readonly StrategySample[]): number[] {
   const cells = new Map<string, number[]>();

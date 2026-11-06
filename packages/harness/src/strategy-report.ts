@@ -1,6 +1,6 @@
 /** 전략 탐색 리포트 (12절 지표 4–6). */
 import { cost, type Regulations } from '@f1sim/core';
-import { average, describePlan, fallbacksPerRace, luck, strategySpread } from './strategy.js';
+import { average, describePlan, fallbacksPerRace, luck, strategySpread, topPlanSamples } from './strategy.js';
 import type { StrategyRun } from './strategy-explore.js';
 
 /** 12절 지표 4–6의 통과 기준. */
@@ -8,7 +8,7 @@ export const STRATEGY_CRITERIA = {
   /** 지표 4: 상위 10% 플랜과 하위 10% 플랜의 평균 결과 차이 ≥ 피트 손실 1회분 (모든 스펙×트랙에서). */
   spreadInPitLosses: 1,
   topShare: 0.1,
-  /** 지표 5: 같은 스펙·같은 플랜의 시드별 순위 표준편차 ≤ 1.5 (평균). */
+  /** 지표 5: 같은 스펙·같은 플랜의 시드별 순위 표준편차 ≤ 1.5 (평균). 플랜은 휴리스틱 (M4 결정, 12절). */
   maxPositionSd: 1.5,
   /** 지표 6: 랜덤 플랜에서도 폴백이 레이스당 평균 1회 미만. */
   maxFallbacksPerRace: 1,
@@ -20,12 +20,15 @@ export function strategyMetrics(run: StrategyRun) {
     return { ...c, pitLoss, ratio: c.spread / pitLoss };
   });
   const minRatio = Math.min(...spread.map((c) => c.ratio));
-  const sds = luck(run.samples);
+  // 지표 5는 10대 전원 휴리스틱 플랜인 레이스로 잰다 (12절 M4 결정). 랜덤 플랜 값은 참고.
+  const sds = luck(run.baseline);
   const meanSd = average(sds);
+  const randomSd = average(luck(run.samples));
+  const topRandomSd = average(luck(topPlanSamples(run.samples, STRATEGY_CRITERIA.topShare)));
   const fallbacks = fallbacksPerRace(run.samples);
   return {
     metric4: { cells: spread, minRatio, pass: minRatio >= STRATEGY_CRITERIA.spreadInPitLosses },
-    metric5: { meanSd, medianSd: [...sds].sort((a, b) => a - b)[Math.floor(sds.length / 2)] ?? 0, shareOk: sds.filter((s) => s <= STRATEGY_CRITERIA.maxPositionSd).length / Math.max(1, sds.length), pass: meanSd <= STRATEGY_CRITERIA.maxPositionSd },
+    metric5: { meanSd, randomSd, topRandomSd, cells: sds.length, medianSd: [...sds].sort((a, b) => a - b)[Math.floor(sds.length / 2)] ?? 0, shareOk: sds.filter((s) => s <= STRATEGY_CRITERIA.maxPositionSd).length / Math.max(1, sds.length), pass: meanSd <= STRATEGY_CRITERIA.maxPositionSd },
     metric6: { fallbacks, pass: fallbacks < STRATEGY_CRITERIA.maxFallbacksPerRace },
   };
 }
@@ -45,7 +48,10 @@ export function strategyReport(run: StrategyRun, regs: Regulations, date: string
   );
   lines.push('## 지표 (DESIGN.md 12절)', '', '| 지표 | 값 | 기준 | 결과 |', '| --- | --- | --- | --- |');
   lines.push(`| 4. 전략 분산 | 상위·하위 10% 차이 최소 ${m.metric4.minRatio.toFixed(2)} × 피트 손실 (스펙×트랙 ${m.metric4.cells.length}칸) | ≥ 1 | ${ok(m.metric4.pass)} |`);
-  lines.push(`| 5. 운 비중 | 순위 σ 평균 ${m.metric5.meanSd.toFixed(2)} (중앙값 ${m.metric5.medianSd.toFixed(2)}, ≤ 1.5인 칸 ${(m.metric5.shareOk * 100).toFixed(0)}%) | ≤ 1.5 | ${ok(m.metric5.pass)} |`);
+  lines.push(
+    `| 5. 운 비중 | 휴리스틱 플랜 순위 σ 평균 ${m.metric5.meanSd.toFixed(2)} (스펙×트랙 ${m.metric5.cells}칸, 중앙값 ${m.metric5.medianSd.toFixed(2)}, ≤ 1.5인 칸 ${(m.metric5.shareOk * 100).toFixed(0)}%). ` +
+      `참고: 랜덤 플랜 전체 ${m.metric5.randomSd.toFixed(2)}, 상위 10% 랜덤 플랜 ${m.metric5.topRandomSd.toFixed(2)} | ≤ 1.5 | ${ok(m.metric5.pass)} |`,
+  );
   lines.push(`| 6. 폴백 빈도 | 레이스당 ${m.metric6.fallbacks.toFixed(2)}회 | < 1 | ${ok(m.metric6.pass)} |`);
   lines.push('');
   type Sample = (typeof run.samples)[number];
@@ -54,14 +60,14 @@ export function strategyReport(run: StrategyRun, regs: Regulations, date: string
       const s = all.filter(keep);
       return `${((s.length / Math.max(1, all.length)) * 100).toFixed(0)}% | ${average(luck(s)).toFixed(2)}`;
     };
-    return `| ${label} | ${cell(run.samples)} | ${cell(run.baseline)} |`;
+    return `| ${label} | ${cell(run.baseline)} | ${cell(run.samples)} |`;
   };
   lines.push(
     '## 지표 5 분해: 어떤 레이스에서 순위가 흔들리나',
     '',
-    '참고 열은 같은 스펙·같은 시드에서 10대 전원이 휴리스틱 플랜일 때 (스펙 × 트랙 칸마다 시드별 순위 σ). 지표 판정에는 안 쓴다.',
+    '판정은 10대 전원 휴리스틱 플랜 (스펙 × 트랙 칸마다 시드별 순위 σ). 랜덤 플랜 열은 참고 — 세이프티카에 반응하지 않는 플랜이 섞여 있어 운보다 플랜 품질을 더 잰다.',
     '',
-    '| 레이스 | 랜덤 플랜: 비율 | 순위 σ | 참고 — 휴리스틱 플랜: 비율 | 순위 σ |',
+    '| 레이스 | 휴리스틱 플랜: 비율 | 순위 σ | 참고 — 랜덤 플랜: 비율 | 순위 σ |',
     '| --- | --- | --- | --- | --- |',
   );
   lines.push(conditional('전부', () => true));
