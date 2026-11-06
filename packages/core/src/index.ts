@@ -141,3 +141,5 @@ export {
   type SeasonLog,
   type StrategyTrace,
 } from './log.js';
+
+export { CalendarSchema, standings, type Calendar, type StandingRow } from './season.js';
