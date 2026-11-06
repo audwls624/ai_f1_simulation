@@ -17,7 +17,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
-    "gen-tracks": "tsx --conditions=@f1sim/source src/cli.ts gen-tracks"
+    "gen-tracks": "tsx --conditions=@f1sim/source src/cli.ts gen-tracks",
+    "design": "tsx --conditions=@f1sim/source src/cli.ts design"
   },
   "dependencies": {
     "@f1sim/agents": "workspace:*",

@@ -24,6 +24,7 @@ AI 모델(나중에는 사람)이 팀이 되어 같은 규정으로 차를 설�
 
 ## 명령
 pnpm install · pnpm test · pnpm lint · pnpm -F @f1sim/core build
+하네스: pnpm -F @f1sim/harness design (12절 설계 탐색 → packages/harness/reports/) · pnpm -F @f1sim/harness gen-tracks
 
 ## 하지 말 것
 - core에 I/O, 로깅, console.
