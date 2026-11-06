@@ -9,7 +9,7 @@ drs_zones:
   - { from_m: 3200, to_m: 3550 }   # 메인 직선 후반
   - { from_m: 0, to_m: 380 }       # 메인 직선 전반
   - { from_m: 2210, to_m: 2520 }   # 백 스트레이트
-sc_rate: 0.015
+sc_rate: 0.003
 abrasiveness: 0.55
 bumpiness: 0.30
 temp_mean: 22

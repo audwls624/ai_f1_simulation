@@ -3,6 +3,8 @@
  *   gen-tracks   track-briefs.ts → data/tracks/<id>.csv, .yaml
  *   design       12절 설계 공간 탐색 → reports/<date>-design.md
  *                [--specs 2000] [--seed 2026] [--sampling budget-surface|budget-volume] [--workers N] [--all-random]
+ *   strategy     12절 전략 공간 탐색 → reports/<date>-strategy.md
+ *                [--plans 500] [--seeds 50] [--tracks a,b,c,d] [--seed 2026] [--design-specs 400] [--workers N]
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -14,6 +16,8 @@ import { DATA_DIR, loadRegulations } from './data.js';
 import { bestSetupLap, seasonTime, type Sampling } from './design.js';
 import { defaultWorkers, runDesignExploration } from './explore.js';
 import { designMetrics, designReport } from './report.js';
+import { DEFAULT_STRATEGY_TRACKS, runStrategyExploration } from './strategy-explore.js';
+import { strategyMetrics, strategyReport } from './strategy-report.js';
 import { TRACK_BRIEFS } from './track-briefs.js';
 import { centerlineCsv, generateLayout, metaFor, metaYaml, seedFor } from './trackgen.js';
 
@@ -94,6 +98,41 @@ function heuristicSection(run: Awaited<ReturnType<typeof runDesignExploration>>,
   return { title: '휴리스틱 설계 (기준선)', body };
 }
 
+async function strategy(args: string[]): Promise<void> {
+  const { values } = parseArgs({
+    args,
+    options: {
+      plans: { type: 'string', default: '500' },
+      seeds: { type: 'string', default: '50' },
+      tracks: { type: 'string', default: DEFAULT_STRATEGY_TRACKS.join(',') },
+      seed: { type: 'string', default: String(SEASON) },
+      'design-specs': { type: 'string', default: '400' },
+      workers: { type: 'string', default: String(defaultWorkers()) },
+    },
+  });
+  const started = performance.now();
+  const run = await runStrategyExploration({
+    season: SEASON,
+    seed: Number(values.seed),
+    plans: Number(values.plans),
+    seeds: Number(values.seeds),
+    trackIds: values.tracks.split(','),
+    specCount: 10,
+    designSpecs: Number(values['design-specs']),
+    workers: Number(values.workers),
+  });
+  const regs = loadRegulations(SEASON);
+  const date = new Date().toISOString().slice(0, 10);
+  mkdirSync(REPORTS_DIR, { recursive: true });
+  const out = join(REPORTS_DIR, `${date}-strategy.md`);
+  writeFileSync(out, strategyReport(run, regs, date));
+  const m = strategyMetrics(run);
+  console.log(`metric 4 (strategy spread): min ${m.metric4.minRatio.toFixed(2)} pit losses ${m.metric4.pass ? 'pass' : 'FAIL'}`);
+  console.log(`metric 5 (luck): mean position sd ${m.metric5.meanSd.toFixed(2)} ${m.metric5.pass ? 'pass' : 'FAIL'}`);
+  console.log(`metric 6 (fallbacks): ${m.metric6.fallbacks.toFixed(2)} per race ${m.metric6.pass ? 'pass' : 'FAIL'}`);
+  console.log(`report: ${out} (${run.samples.length} races, ${((performance.now() - started) / 1000).toFixed(1)} s)`);
+}
+
 const [command, ...rest] = process.argv.slice(2);
 switch (command) {
   case 'gen-tracks':
@@ -102,7 +141,10 @@ switch (command) {
   case 'design':
     await design(rest);
     break;
+  case 'strategy':
+    await strategy(rest);
+    break;
   default:
-    console.error(`unknown command "${command ?? ''}". commands: gen-tracks, design`);
+    console.error(`unknown command "${command ?? ''}". commands: gen-tracks, design, strategy`);
     process.exitCode = 1;
 }

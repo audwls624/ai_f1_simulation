@@ -7,7 +7,7 @@ pit_entry_m: 2145
 pit_exit_m: 150
 drs_zones:
   - { from_m: 0, to_m: 200 }       # 메인 직선 (유일하게 긴 직선)
-sc_rate: 0.030
+sc_rate: 0.006
 abrasiveness: 0.50
 bumpiness: 0.80
 temp_mean: 24

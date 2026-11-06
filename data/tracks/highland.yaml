@@ -9,7 +9,7 @@ drs_zones:
   - { from_m: 0, to_m: 189 }
   - { from_m: 6130, to_m: 6308 }
   - { from_m: 3736, to_m: 4032 }
-sc_rate: 0.018
+sc_rate: 0.0036
 abrasiveness: 0.6
 bumpiness: 0.3
 temp_mean: 13

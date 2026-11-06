@@ -8,7 +8,7 @@ pit_exit_m: 53
 drs_zones:
   - { from_m: 0, to_m: 76 }
   - { from_m: 2985, to_m: 3049 }
-sc_rate: 0.02
+sc_rate: 0.004
 abrasiveness: 0.9
 bumpiness: 0.6
 temp_mean: 27

@@ -104,7 +104,7 @@ car:
     warmup_laps: { qualifying: 1, race: 2 }   # 4절: 예선 1랩, 레이스 초반 2랩에 페널티
 
   reliability:
-    failure_rate_per_lap: [0.003, 0.0004]     # TODO(balance): reliability → 랩당 고장 확률 (기온·페이스 승수 전)
+    failure_rate_per_lap: [0.0011, 0.00015]   # TODO(balance): reliability → 랩당 고장 확률 (기온·페이스 승수 전). M4: 보통 신뢰도에서 레이스당 DNF ≈ 3%
     thermal_efficiency_failure: 0.25          # TODO(balance): thermal_efficiency 1.0이면 고장률 ×1.25 ("소폭↑")
 
   fuel:
