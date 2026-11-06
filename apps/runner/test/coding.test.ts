@@ -168,6 +168,27 @@ describe('a season with a coding agent team (DESIGN.md §13 M5)', () => {
   }, 60_000);
 });
 
+describe('parallel team calls (DESIGN.md §2: calls are independent)', () => {
+  it('serving several coding agents at once gives the same season as one at a time', async () => {
+    const run = (concurrency: number) =>
+      runSeason({
+        regs,
+        season: 2026,
+        seed: 12,
+        calendar,
+        concurrency,
+        teams: [
+          { team: 'c1', agent: fake('good') },
+          { team: 'c2', agent: fake('bad-first') },
+          { team: 'h1', agent: new HeuristicAgent() },
+        ],
+      });
+    const [parallel, serial] = [await run(3), await run(1)];
+    expect(seasonFiles(parallel)).toEqual(seasonFiles(serial));
+    expect((parallel.agentLogs.get('c2') ?? []).every((l) => l.resubmission?.validation.ok === true)).toBe(true);
+  }, 60_000);
+});
+
 describe('teams file', () => {
   it('parses heuristic and coding teams (headless or manual) and rejects mistakes', () => {
     const file = parseTeamsFile(

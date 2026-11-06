@@ -2,7 +2,7 @@
  * 러너 CLI. `pnpm -F @f1sim/runner <command>`.
  *   race    [--gp 7] [--teams 10] [--seed 2026] [--out <dir>]   휴리스틱 팀으로 GP 하나 (프리시즌 설계 → 플랜 → 레이스)
  *   season  [--teams 10] [--seed 2026] [--out <dir>]             휴리스틱 팀으로 시즌 전체 (24전)
- *           [--teams-file <teams.yaml>] [--workspaces <dir>] [--gps <n>]
+ *           [--teams-file <teams.yaml>] [--workspaces <dir>] [--gps <n>] [--concurrency <n>]
  *                                                               팀 파일: 코딩 에이전트 팀 (헤드리스/수동) + 휴리스틱. --gps는 앞 n전만 (시험용)
  *   replay  <race.json> [--every 10]                             텍스트 리플레이 + 전략 트레이스
  *   golden  [--update] [--teams 10] [--seed 2026]                골든 로그 대조 (--update: 휴리스틱 시즌으로 다시 만든다)
@@ -73,6 +73,7 @@ async function season(args: string[]): Promise<void> {
       'teams-file': { type: 'string' },
       workspaces: { type: 'string' },
       gps: { type: 'string' },
+      concurrency: { type: 'string' },
     },
   });
   const regs = loadRegulations(SEASON);
@@ -104,6 +105,7 @@ async function season(args: string[]): Promise<void> {
     seed,
     calendar,
     teams,
+    ...(values.concurrency !== undefined ? { concurrency: Number(values.concurrency) } : {}),
     onGp: (gp, r) => console.log(`GP ${String(gp).padStart(2)} ${r.meta.track.padEnd(18)} winner ${r.result[0]?.team ?? '-'}`),
   }).finally(stop);
   const dir = values.out ?? join(RUNS_DIR, `${SEASON}-s${seed}`);

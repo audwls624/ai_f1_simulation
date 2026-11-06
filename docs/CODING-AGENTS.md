@@ -1,0 +1,81 @@
+# 코딩 에이전트 팀 운영 안내
+
+LLM 팀은 각 모델의 코딩 에이전트로 참가한다 (DESIGN.md 9절 "LLM 팀 = 코딩 에이전트"). 이 문서는 팀을 어떻게 띄우고 무엇을 시키는지 정리한다.
+
+## 흐름
+
+1. 러너가 팀마다 워크스페이스를 만든다 (기본: OS 임시 디렉터리 아래 `f1sim-workspaces/<시즌>-s<시드>-<실행 ID>/<팀>/`, 레포 밖). 실행할 때 경로를 출력한다.
+2. 호출(프리시즌 설계 1회 + GP마다 플랜 1회 = 시즌 25회)마다 러너가 `TASK.md`와 `packet.json`을 새로 쓴다. `BRIEF.md`(게임 설명), `schemas/`, `./f1sim`은 처음부터 있다.
+3. 에이전트는 `./f1sim status | wind-tunnel | strategy-sim | submit`만으로 일한다. 횟수와 검증은 러너가 한다.
+4. 제출이 받아들여지면 그 호출은 끝이다. 거절되면 오류 목록을 보고 한 번 더 낼 수 있다. 제한 시간은 호출마다 `response_timeout_s` (현재 600초), `./f1sim status`가 남은 초를 알려 준다.
+5. 같은 단계의 팀 호출은 동시에 돈다 (2절: 팀 간 독립). 결과는 순서와 무관하게 같다.
+
+에이전트에게 줄 지시는 모든 팀이 같다. 헤드리스 팀은 러너가 아래 문장을 `{prompt}` 자리에 넣어 준다. 수동 팀은 이 문장을 그대로 보낸다 (`<팀>`만 바꿔서):
+
+```
+You are team "<팀>" in the f1sim racing game, and the current directory is your team workspace. Read TASK.md and BRIEF.md, then complete the task using the ./f1sim command. Work only inside this directory.
+```
+
+## 라인업 (`apps/runner/teams.example.yaml`)
+
+| 팀 | 도구 | 모델 | 방식 |
+| --- | --- | --- | --- |
+| opus | Claude Code | claude-opus-5-5 | 헤드리스 |
+| sonnet | Claude Code | claude-sonnet-5-5 | 헤드리스 |
+| fable | Claude Code | claude-fable-5-1 | 헤드리스 |
+| astra | Codex CLI | astra (모델 이름 확인) | 헤드리스 |
+| sol | Codex CLI | sol (모델 이름 확인) | 헤드리스 |
+| terra | Codex CLI | terra (모델 이름 확인) | 헤드리스 |
+| grok | (미정) | grok | 수동 |
+| flash | Gemini CLI | Flash (모델 ID 확인) | 헤드리스 |
+| heuristic-01, 02 | 휴리스틱 | — | 기준선 |
+
+같은 도구의 팀(opus·sonnet·fable, astra·sol·terra)은 레드불과 레이싱 불스처럼 별개 팀이다. 포인트·순위·워크스페이스가 따로이고, 서로의 워크스페이스를 보면 안 된다.
+
+## 도구별 준비
+
+모든 헤드리스 도구는 미리 로그인해 둔다. 러너는 API 키를 다루지 않는다 — 인증은 각 도구의 것이다.
+
+**Claude Code** (`claude`)
+- 명령: `claude -p "{prompt}" --model <모델> --permission-mode acceptEdits --allowedTools "Bash(./f1sim:*)" "Bash(python3:*)" "Bash(node:*)"`
+- 파일 편집은 자동 승인, 셸은 `./f1sim`과 분석 스크립트(python3·node)만. 다른 셸 명령은 거부된다.
+
+**Codex CLI** (`codex`)
+- 명령: `codex exec -m <모델> -s workspace-write --skip-git-repo-check "{prompt}"`
+- `-m`에 astra / sol / terra의 실제 모델 이름을 넣는다 (`teams.example.yaml`의 TODO). 워크스페이스는 git 저장소가 아니라 `--skip-git-repo-check`가 필요하다. `workspace-write` 샌드박스는 워크스페이스 안에만 쓴다 — `./f1sim`은 파일로 통신하므로 네트워크가 막혀도 된다.
+
+**Gemini CLI** (`gemini`)
+- 명령: `gemini -m <Flash 모델 ID> --approval-mode yolo -p "{prompt}"`
+- `./f1sim` 실행에 셸 승인이 필요해 `yolo`다. 모든 도구 호출이 자동 승인되므로 이 팀은 지시(“이 디렉터리 안에서만”)에 더 기댄다. `-s`(샌드박스)를 쓸 수 있으면 붙인다.
+
+**Grok** — 이 머신에 헤드리스 CLI가 없어 수동으로 둔다. 헤드리스로 돌릴 도구(예: OpenCode의 xAI 모델)가 정해지면 `command`를 넣는다.
+
+## 수동 팀 진행 (Grok, Antigravity 같은 IDE·앱 에이전트)
+
+1. 러너 출력에서 그 팀 줄을 기다린다: `· grok GP 3 (...): open <경로> in the team's coding agent and ask it to follow TASK.md (time limit 10 min)`
+2. 그 경로를 에이전트로 열고 위의 지시 문장을 보낸다. 시계는 러너가 이 줄을 낸 순간부터 돈다.
+3. 에이전트가 `./f1sim submit`으로 내고 `Accepted`를 받으면 끝. 러너가 다음 단계로 간다.
+4. 호출마다 새 대화로 시작한다. 헤드리스 팀도 매번 새 세션이라, 같은 대화를 이어 쓰면 기억에서 이득을 본다. 시즌 동안 남기고 싶은 것은 워크스페이스에 메모로 남긴다 (모든 팀이 같은 조건).
+
+## 실행
+
+```bash
+# 시험: 1 GP (호출 2회 × 팀)
+pnpm -F @f1sim/runner season --teams-file teams.example.yaml --gps 1
+
+# 시즌 전체 (24전, 팀당 25회)
+pnpm -F @f1sim/runner season --teams-file teams.example.yaml
+
+# 같은 계정으로 여러 팀을 동시에 돌리다 rate limit에 걸리면 동시 호출 수를 줄인다
+pnpm -F @f1sim/runner season --teams-file teams.example.yaml --concurrency 4
+```
+
+- 결과: `runs/2026-s<시드>/` — `season.json`, GP별 `race.json`, `agents/<팀>.jsonl`(제출물·툴 호출·검증·지연).
+- 에이전트 출력: 워크스페이스의 `.f1sim/logs/<번호>-<호출>.log`. 팀이 남긴 메모·스크립트도 워크스페이스에 있다.
+- 재생: `agents/*.jsonl`의 제출물만으로 시즌이 바이트 단위로 재현된다 (`ReplayAgent`, 11절).
+
+## 공정성 체크
+
+- 모든 팀이 같은 `BRIEF.md`, 같은 패킷, 같은 지시 문장, 같은 툴 예산과 제한 시간을 받는다.
+- 격리는 지시와 각 도구의 권한·샌드박스에 기댄다. 도구마다 막는 범위가 다르다 (Claude Code는 허용한 셸 명령만, Codex는 쓰기만 워크스페이스로 제한, Gemini `yolo`는 제한 없음). 다른 팀 워크스페이스나 레포(엔진 모델 계수)를 읽지 못하게 강제하려면 컨테이너 격리가 필요하다 — 나중 단계.
+- 전략 시뮬의 라이벌은 아직 규정의 기본 스펙 + 기본 전략이다 (9절 "지난 GP 스펙 추정치"는 미구현). 순위 분포는 낙관적이고, 플랜 비교에는 평균 레이스 시간이 더 믿을 만하다.

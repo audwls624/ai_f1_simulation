@@ -151,6 +151,23 @@ export async function preseasonDesign(regs: Regulations, team: Team, calendar: r
   };
 }
 
+/**
+ * 팀 호출을 동시에 돌린다 (2절: 팀 간 독립 — 엔진은 전 팀 제출물을 다 받은 뒤에만 다음 단계로, 순서·속도는 결과에 영향 없음).
+ * 툴 난수는 팀마다 따로 파생하므로 동시성과 무관하게 결정적이다. 결과는 입력 순서 그대로.
+ */
+async function mapTeams<T, R>(items: readonly T[], limit: number, work: (item: T) => Promise<R>): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  const lanes = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await work(items[i] as T);
+    }
+  });
+  await Promise.all(lanes);
+  return out;
+}
+
 export interface GPOutcome {
   readonly race: RaceLog;
   readonly agentLogs: readonly AgentIOLog[];
@@ -168,13 +185,14 @@ export async function runGP(args: {
   readonly gridPenalty: ReadonlySet<string>;
   readonly standings?: readonly Standing[];
   readonly lastGp?: PublicRaceLog | null;
+  /** 동시에 부르는 팀 수 (기본: 전부). */
+  readonly concurrency?: number;
 }): Promise<GPOutcome> {
   const { regs, track } = args;
   const raceSeed = deriveSeed(args.seasonSeed, `gp:${args.gp}`);
   const forecast = gpForecast(track, regs, raceSeed);
   const plans = new Map<string, GPPlan>();
-  const agentLogs: AgentIOLog[] = [];
-  for (const team of args.teams) {
+  const results = await mapTeams(args.teams, args.concurrency ?? args.teams.length, async (team) => {
     const spec = args.specs.get(team.team) ?? regs.fallback.spec;
     const packet = buildGPPacket({
       regs,
@@ -218,9 +236,8 @@ export async function runGP(args: {
     }
     const tokens = sumTokens(first.out.tokens, resubmission ? final.out.tokens : undefined);
     const plan = final.checked?.ok ? final.checked.value : defaultPlan(regs, track.laps);
-    plans.set(team.team, plan);
     const warnings = final.checked?.ok ? lint(final.checked.value).map(formatIssue) : [];
-    agentLogs.push({
+    const log: AgentIOLog = {
       call: 'plan_gp',
       team: team.team,
       gp: args.gp,
@@ -233,7 +250,13 @@ export async function runGP(args: {
       fallback_used: final.checked?.ok !== true,
       latency_s: first.r.latency + (resubmission ? final.r.latency : 0),
       ...(tokens ? { tokens } : {}),
-    });
+    };
+    return { team: team.team, plan, log };
+  });
+  const agentLogs: AgentIOLog[] = [];
+  for (const r of results) {
+    plans.set(r.team, r.plan);
+    agentLogs.push(r.log);
   }
   const race = runRace({
     season: args.season,
@@ -272,14 +295,19 @@ export async function runSeason(args: {
   readonly teams: readonly Team[];
   /** GP 하나가 끝날 때마다 (진행 표시용). */
   readonly onGp?: (gp: number, race: RaceLog) => void;
+  /** 동시에 부르는 팀 수 (기본: 전부). */
+  readonly concurrency?: number;
 }): Promise<SeasonOutcome> {
   const { regs, teams } = args;
+  const concurrency = args.concurrency ?? teams.length;
   const names = teams.map((t) => t.team);
   const agentLogs = new Map<string, AgentIOLog[]>(names.map((n) => [n, []]));
   const specs = new Map<string, CarSpec>();
   const penalties = new Set<string>();
-  for (const team of teams) {
-    const d = await preseasonDesign(regs, team, args.calendar, args.seed);
+  const designs = await mapTeams(teams, concurrency, (team) => preseasonDesign(regs, team, args.calendar, args.seed));
+  for (const [i, team] of teams.entries()) {
+    const d = designs[i];
+    if (!d) continue;
     specs.set(team.team, d.spec);
     if (d.gridPenalty) penalties.add(team.team);
     agentLogs.get(team.team)?.push(d.log);
@@ -302,6 +330,7 @@ export async function runSeason(args: {
       gridPenalty: gp === 1 ? penalties : new Set(),
       standings: table,
       lastGp: last ? publicRaceLog(last) : null,
+      concurrency,
     });
     races.push(outcome.race);
     for (const l of outcome.agentLogs) agentLogs.get(l.team)?.push(l);

@@ -1,30 +1,61 @@
-# 시즌 참가 팀 (DESIGN.md 9·13절 M5): 코딩 에이전트 팀 + 휴리스틱 팀.
-#   pnpm -F @f1sim/runner season --teams-file teams.example.yaml [--gps 2]
+# 시즌 참가 팀 (DESIGN.md 9·13절, 운영 안내: docs/CODING-AGENTS.md).
+#   pnpm -F @f1sim/runner season --teams-file teams.example.yaml [--gps 1] [--concurrency N]
 #
-# 코딩 에이전트 팀은 워크스페이스(기본: OS 임시 디렉터리 아래, 레포 밖)에서 BRIEF.md·TASK.md·packet.json을 읽고
-# ./f1sim 명령으로 풍동·전략 시뮬을 쓰고 제출한다. 호출마다 응답 제한 시간은 규정의 response_timeout_s.
-#
-# command가 있으면 헤드리스: 러너가 워크스페이스에서 이 명령을 띄운다. "{prompt}"는 짧은 지시로 바뀐다.
-# command가 없으면 수동: 러너가 워크스페이스 경로를 알려 주고 제출을 기다린다 (그 디렉터리를 코딩 에이전트로 열고 TASK.md를 따르게 한다).
-#
-# 헤드리스 명령 예시 (플래그는 각 도구 문서로 확인할 것 — 워크스페이스 안의 파일 쓰기와 ./f1sim 실행 권한이 필요하다):
-#   Claude Code:  [claude, -p, "{prompt}", --permission-mode, acceptEdits, --allowedTools, "Bash(./f1sim:*)"]
-#   Codex CLI:    [codex, exec, --full-auto, "{prompt}"]
-#   OpenCode:     [opencode, run, "{prompt}"]
-#   Cursor CLI:   [cursor-agent, -p, --force, "{prompt}"]
-#   Antigravity 같은 IDE 에이전트: command 없이 수동으로.
+# command가 있으면 헤드리스: 러너가 팀 워크스페이스에서 이 명령을 띄운다. "{prompt}"는 짧은 지시로 바뀐다.
+# command가 없으면 수동: 러너가 워크스페이스 경로를 알려 주고 제출을 기다린다.
+# model은 SeasonLog에 남는 이름이다. 명령 안의 모델 플래그와 같게 둘 것.
 teams:
-  - team: claude
+  # ── Claude Code ─────────────────────────────────────────────────────
+  # 권한: 워크스페이스 파일 편집 + ./f1sim, 그리고 자기 분석 스크립트(python3·node) — 다른 도구 팀과 같은 수준.
+  - team: opus
     agent: coding
     label: claude-code
     model: claude-opus-5-5
-    command: [claude, -p, "{prompt}", --permission-mode, acceptEdits, --allowedTools, "Bash(./f1sim:*)"]
+    command: [claude, -p, "{prompt}", --model, claude-opus-5-5, --permission-mode, acceptEdits, --allowedTools, "Bash(./f1sim:*)", "Bash(python3:*)", "Bash(node:*)"]
+  - team: sonnet
+    agent: coding
+    label: claude-code
+    model: claude-sonnet-5-5
+    command: [claude, -p, "{prompt}", --model, claude-sonnet-5-5, --permission-mode, acceptEdits, --allowedTools, "Bash(./f1sim:*)", "Bash(python3:*)", "Bash(node:*)"]
+  - team: fable
+    agent: coding
+    label: claude-code
+    model: claude-fable-5-1
+    command: [claude, -p, "{prompt}", --model, claude-fable-5-1, --permission-mode, acceptEdits, --allowedTools, "Bash(./f1sim:*)", "Bash(python3:*)", "Bash(node:*)"]
+
+  # ── Codex CLI ───────────────────────────────────────────────────────
+  # TODO: -m 값을 Codex에서 쓰는 실제 모델 이름으로 (astra / sol / terra). 워크스페이스는 git 저장소가 아니라 --skip-git-repo-check.
+  - team: astra
+    agent: coding
+    label: codex
+    model: astra
+    command: [codex, exec, -m, astra, -s, workspace-write, --skip-git-repo-check, "{prompt}"]
+  - team: sol
+    agent: coding
+    label: codex
+    model: sol
+    command: [codex, exec, -m, sol, -s, workspace-write, --skip-git-repo-check, "{prompt}"]
+  - team: terra
+    agent: coding
+    label: codex
+    model: terra
+    command: [codex, exec, -m, terra, -s, workspace-write, --skip-git-repo-check, "{prompt}"]
+
+  # ── Grok ────────────────────────────────────────────────────────────
+  # 이 머신에 Grok CLI가 없어 수동. 헤드리스로 돌릴 도구가 정해지면 command를 넣는다.
+  - team: grok
+    agent: coding
+    label: grok
+    model: grok
+
+  # ── Gemini CLI ──────────────────────────────────────────────────────
+  # TODO: -m 값을 쓰려는 Flash 모델 ID로. ./f1sim 실행에 셸 승인이 필요해 approval-mode yolo.
+  - team: flash
+    agent: coding
+    label: gemini-cli
+    model: gemini-flash
+    command: [gemini, -m, gemini-flash, --approval-mode, yolo, -p, "{prompt}"]
+
+  # ── 기준선 (12절: LLM 팀이 휴리스틱을 꾸준히 못 이기면 툴·패킷을 재검토) ─────────
   - { team: heuristic-01, agent: heuristic }
   - { team: heuristic-02, agent: heuristic }
-  - { team: heuristic-03, agent: heuristic }
-  - { team: heuristic-04, agent: heuristic }
-  - { team: heuristic-05, agent: heuristic }
-  - { team: heuristic-06, agent: heuristic }
-  - { team: heuristic-07, agent: heuristic }
-  - { team: heuristic-08, agent: heuristic }
-  - { team: heuristic-09, agent: heuristic }
