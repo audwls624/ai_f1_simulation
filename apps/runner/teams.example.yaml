@@ -66,13 +66,23 @@ teams:
     model: glm-5.3-flash-free
     command: [opencode, run, -m, opencode/glm-5.3-flash-free, "{prompt}"]
 
-  # ── Antigravity: Gemini 3.8 Flash (수동) ─────────────────────────────
-  # 러너가 경로를 출력하면 Antigravity에서 그 폴더를 열고, 에이전트 대화에서 Gemini 3.8 Flash를 고른 뒤 지시 문장을 보낸다.
-  # 손 안 대고 돌리려면 Gemini CLI로: command: [gemini, -m, <모델 ID>, --approval-mode, yolo, -p, "{prompt}"]
+  # ── Antigravity CLI (agy): Gemini 3.8 Flash (헤드리스) ────────────────
+  # 헤드리스(-p)에서는 셸 명령 승인을 물을 수 없어 거부된다 → 이 세션에만 쓰는 --settings로 ./f1sim·python3·node만 허용
+  # (Claude 팀과 같은 범위, settings.json에는 저장되지 않는다). --mode auto는 이 계정에서 쓸 수 없다.
   - team: flash
     agent: coding
     label: antigravity
-    model: gemini-3.8-flash
+    model: gemini-3.8-flash-high
+    command:
+      - agy
+      - -p
+      - "{prompt}"
+      - --model
+      - gemini-3.8-flash-high
+      - --mode
+      - accept-edits
+      - --settings
+      - '{"permissions":{"allow":["command(./f1sim)","command(python3)","command(node)"]}}'
 
   # ── 기준선 (12절: LLM 팀이 휴리스틱을 꾸준히 못 이기면 툴·패킷을 재검토) ─────────
   - { team: heuristic-01, agent: heuristic }

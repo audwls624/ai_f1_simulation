@@ -29,7 +29,7 @@ You are team "<팀>" in the f1sim racing game, and the current directory is your
 | nemotron | OpenCode | Nemotron 3.5 Super (`opencode/nemotron-3.5-super-vl-free`) | 헤드리스 |
 | deepseek | OpenCode | DeepSeek V4.1 Flash (`opencode/deepseek-v4.1-flash-free`, 로그인하면 `-free` 빼기) | 헤드리스 |
 | glm | OpenCode | GLM-5.3 Flash (`opencode/glm-5.3-flash-free`, 로그인하면 `-free` 빼기) | 헤드리스 |
-| flash | Antigravity | Gemini 3.8 Flash | 수동 (IDE) |
+| flash | Antigravity CLI (`agy`) | Gemini 3.8 Flash (`gemini-3.8-flash-high`) | 헤드리스 |
 | heuristic-01 | 휴리스틱 | — | 기준선 |
 
 같은 도구의 팀(opus·sonnet·fable, astra·sol·terra)은 레드불과 레이싱 불스처럼 별개 팀이다. 뷰어 색은 팀 파일 순서로 8팀까지 — 9·10번째 코딩 에이전트 팀(glm, flash)과 휴리스틱은 회색에 약칭으로 구분한다. Grok 4.7(Cursor)은 첫 스파 시험에서 Cursor 무료 한도에 걸려 Nemotron으로 바꿨다. OpenCode Zen 무료 모델은 전부 "기간 한정"이고 사용량 한도는 공개돼 있지 않다 (opencode.ai/docs/zen). 포인트·순위·워크스페이스가 따로이고, 서로의 워크스페이스를 보면 안 된다.
@@ -56,10 +56,10 @@ You are team "<팀>" in the f1sim racing game, and the current directory is your
 - 수동: 팀 파일에서 `command`를 뺀다. 러너가 경로를 출력하면 Cursor에서 그 폴더를 열고(File → Open Folder) Agent 채팅에서 모델을 고른 뒤 지시 문장을 보낸다. 터미널 명령마다 승인을 묻는 설정이면 `./f1sim`을 허용 목록에 넣거나 자동 실행을 켠다 — 풍동 20회를 10분 안에 써야 한다.
 - 헤드리스: Cursor CLI를 설치하고 로그인한 뒤 `command: [cursor-agent, -p, --force, --model, <모델>, "{prompt}"]`. (이 머신에 설치돼 있지 않아 플래그는 확인하지 못했다 — 1GP 시험으로 확인.)
 
-**Antigravity** — IDE라 수동.
-- 팀 파일에서 `command`를 뺀다. 러너가 경로를 출력하면 Antigravity에서 그 폴더를 열고, 에이전트 대화에서 모델(Gemini Flash)을 고른 뒤 지시 문장을 보낸다.
-- 터미널 명령 실행이 매번 승인 대기면 `./f1sim` 실행을 자동으로 허용하는 쪽으로 바꾼다 (설정 이름은 버전마다 다를 수 있다).
-- 같은 모델을 헤드리스로 돌리고 싶으면 Gemini CLI 항목을 쓴다.
+**Antigravity** — 명령줄 도구 `agy`로 헤드리스 (IDE로 수동도 된다).
+- 명령: `agy -p "{prompt}" --model gemini-3.8-flash-high --mode accept-edits --settings '{"permissions":{"allow":["command(./f1sim)","command(python3)","command(node)"]}}'`
+- 헤드리스에서는 셸 명령 승인을 물을 수 없어 자동 거부된다. `--settings`의 허용 규칙(`command(<프로그램>)`, 인자는 무엇이든)은 그 실행에만 적용되고 settings.json에 저장되지 않는다. `--mode auto`는 이 계정에서 쓸 수 없었다. 모델 목록: `agy models`.
+- IDE로 수동으로 할 때: 팀 파일에서 `command`를 빼고, 러너가 경로를 출력하면 Antigravity에서 그 폴더를 열어 모델을 고른 뒤 지시 문장을 보낸다. 터미널 명령마다 승인을 물으면 `./f1sim` 실행을 자동 허용으로 바꾼다 (설정 이름은 버전마다 다르다).
 
 **OpenCode** (`opencode`) — 헤드리스. 명령줄용 `opencode`가 동작해야 한다 — 데스크톱 앱(`OpenCode.app`)만으로는 러너가 띄울 수 없다 (그때는 Cursor처럼 수동으로). 첫 스파 시험에서 이 머신의 `~/.opencode/bin/opencode`(2026-01 설치본)는 아무 출력 없이 바로 끝나 공식 설치 스크립트로 1.19.5를 다시 깔았다. 로그인(`opencode auth login`) 없이는 OpenCode Zen 무료판(`opencode/deepseek-v4.1-flash-free`, `opencode/glm-5.3-flash-free`)만 쓸 수 있고 유료 ID는 서버 오류로 실패한다.
 - `command: [opencode, run, -m, <provider/model>, "{prompt}"]` (예: xAI 모델이면 `xai/<모델>`). 비대화 모드에서 셸·편집 권한 확인이 막히지 않도록 OpenCode 설정에서 이 워크스페이스의 bash·edit을 허용한다.
