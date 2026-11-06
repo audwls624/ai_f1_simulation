@@ -111,6 +111,7 @@ export function designTask(packet: PreseasonPacket, errors?: readonly string[]):
     '3. If it is rejected, fix every error and submit once more. Stop when it is accepted.',
     '',
     'The call only counts once `./f1sim submit` prints `"accepted": true`. Saying you are done does not submit anything.',
+    'Shell commands: only `./f1sim`, `python3` and `node` are guaranteed to be allowed. Read files with your file tools, not `cat`/`head`/`ls` — some agents stop the session when a command is denied.',
     '',
   ].join('\n');
 }
@@ -131,6 +132,7 @@ export function planTask(packet: GPPacket, errors?: readonly string[]): string {
     '3. If it is rejected, fix every error and submit once more. Stop when it is accepted.',
     '',
     'The call only counts once `./f1sim submit` prints `"accepted": true`. Saying you are done does not submit anything.',
+    'Shell commands: only `./f1sim`, `python3` and `node` are guaranteed to be allowed. Read files with your file tools, not `cat`/`head`/`ls` — some agents stop the session when a command is denied.',
     '',
   ].join('\n');
 }

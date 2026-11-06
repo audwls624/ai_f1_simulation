@@ -10,7 +10,7 @@
  */
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { RaceLogSchema, type AgentIOLog, type CarSpec } from '@f1sim/core';
@@ -87,10 +87,12 @@ async function season(args: string[]): Promise<void> {
   const started = performance.now();
   let teams: Team[];
   let coding: CodingAgent[] = [];
+  let runName = `${SEASON}-s${seed}`;
   if (values['teams-file']) {
     const file = parseTeamsFile(readFileSync(values['teams-file'], 'utf8'));
     // 레포 밖 (에이전트에게 가는 건 공개 규정뿐). 실행마다 새 디렉터리.
     const workspaces = values.workspaces ?? join(tmpdir(), 'f1sim-workspaces', `${SEASON}-s${seed}-${Date.now().toString(36)}`);
+    runName = `${SEASON}-s${seed}-${basename(workspaces)}`.replace(/^(\d+-s\d+)-\1-/, '$1-');
     ({ teams, coding } = buildTeams(file, workspaces, (m) => console.log(`  · ${m}`)));
     if (coding.length > 0) console.log(`coding agent workspaces: ${workspaces}`);
   } else {
@@ -112,7 +114,8 @@ async function season(args: string[]): Promise<void> {
     ...(values.concurrency !== undefined ? { concurrency: Number(values.concurrency) } : {}),
     onGp: (gp, r) => console.log(`GP ${String(gp).padStart(2)} ${r.meta.track.padEnd(18)} winner ${r.result[0]?.team ?? '-'}`),
   }).finally(stop);
-  const dir = values.out ?? join(RUNS_DIR, `${SEASON}-s${seed}`);
+  // 팀 파일로 돌린 시즌은 워크스페이스 이름을 붙여 따로 남긴다 (같은 시드의 휴리스틱 시즌 결과를 덮어쓰지 않게).
+  const dir = values.out ?? join(RUNS_DIR, runName);
   for (const [path, text] of [...seasonFiles(outcome), ...agentFiles(outcome)]) {
     mkdirSync(dirname(join(dir, path)), { recursive: true });
     writeFileSync(join(dir, path), text);
