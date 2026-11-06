@@ -3,15 +3,16 @@
  *   race    [--gp 7] [--teams 10] [--seed 2026] [--out <dir>]   휴리스틱 팀으로 GP 하나 (프리시즌 설계 → 플랜 → 레이스)
  *   season  [--teams 10] [--seed 2026] [--out <dir>]             휴리스틱 팀으로 시즌 전체 (24전)
  *   replay  <race.json> [--every 10]                             텍스트 리플레이 + 전략 트레이스
+ *   golden  [--update] [--teams 10] [--seed 2026]                골든 로그 대조 (--update: 휴리스틱 시즌으로 다시 만든다)
  */
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { HeuristicAgent } from '@f1sim/agents';
 import { RaceLogSchema, type AgentIOLog, type CarSpec } from '@f1sim/core';
 import { DATA_DIR, loadRegulations, loadSeasonTracks } from '@f1sim/harness';
-import { gpDir, preseasonDesign, runGP, runSeason, type Team } from './orchestrate.js';
+import { agentFiles, checkGolden, goldenDir, heuristicTeams, recordGolden, seasonFiles } from './golden.js';
+import { gpDir, preseasonDesign, runGP, runSeason } from './orchestrate.js';
 import { formatRace } from './text.js';
 
 const SEASON = 2026;
@@ -57,10 +58,6 @@ async function race(args: string[]): Promise<void> {
   console.log(`\nrace log: ${join(dir, 'race.json')}\nagent logs: ${agentsDir}/`);
 }
 
-function heuristicTeams(n: number): Team[] {
-  return Array.from({ length: n }, (_, i) => ({ team: `heuristic-${String(i + 1).padStart(2, '0')}`, agent: new HeuristicAgent() }));
-}
-
 async function season(args: string[]): Promise<void> {
   const { values } = parseArgs({
     args,
@@ -79,18 +76,12 @@ async function season(args: string[]): Promise<void> {
     onGp: (gp, r) => console.log(`GP ${String(gp).padStart(2)} ${r.meta.track.padEnd(18)} winner ${r.result[0]?.team ?? '-'}`),
   });
   const dir = values.out ?? join(RUNS_DIR, `${SEASON}-s${seed}`);
-  mkdirSync(join(dir, 'agents'), { recursive: true });
-  writeFileSync(join(dir, 'season.json'), `${JSON.stringify(outcome.log, null, 1)}\n`);
+  for (const [path, text] of [...seasonFiles(outcome), ...agentFiles(outcome)]) {
+    mkdirSync(dirname(join(dir, path)), { recursive: true });
+    writeFileSync(join(dir, path), text);
+  }
   copyFileSync(join(DATA_DIR, 'regulations', `${SEASON}.yaml`), join(dir, 'regulations.yaml'));
   copyFileSync(join(DATA_DIR, 'model', `${SEASON}.yaml`), join(dir, 'model.yaml'));
-  for (const race of outcome.races) {
-    const gpPath = join(dir, gpDir(race.meta.gp, race.meta.track));
-    mkdirSync(gpPath, { recursive: true });
-    writeFileSync(join(gpPath, 'race.json'), `${JSON.stringify(race)}\n`);
-  }
-  for (const [team, lines] of outcome.agentLogs) {
-    writeFileSync(join(dir, 'agents', `${team}.jsonl`), lines.map((l) => JSON.stringify(l)).join('\n') + '\n');
-  }
   console.log('\nStandings');
   for (const r of outcome.standings) {
     console.log(`  ${String(r.pos).padStart(2)}  ${r.team.padEnd(16)} ${String(r.points).padStart(4)} pts  wins ${r.wins}  DNF ${r.dnfs}`);
@@ -110,6 +101,37 @@ function replay(args: string[]): void {
   process.stdout.write(formatRace(log, { every: Number(values.every) }));
 }
 
+async function golden(args: string[]): Promise<void> {
+  const { values } = parseArgs({
+    args,
+    options: {
+      update: { type: 'boolean', default: false },
+      teams: { type: 'string', default: '10' },
+      seed: { type: 'string', default: String(SEASON) },
+    },
+  });
+  const regs = loadRegulations(SEASON);
+  const calendar = loadSeasonTracks(SEASON, regs);
+  const seed = Number(values.seed);
+  if (values.update) {
+    const started = performance.now();
+    const { dir, manifest } = await recordGolden({ regs, calendar, season: SEASON, seed, teams: Number(values.teams) });
+    const [first, second] = manifest.standings;
+    console.log(`golden written: ${dir} (${manifest.files.length} files, Node ${manifest.node}, ${((performance.now() - started) / 1000).toFixed(1)} s)`);
+    if (first && second) console.log(`champion ${first.team} ${first.points} pts, runner-up ${second.team} ${second.points} pts`);
+    return;
+  }
+  const check = await checkGolden(goldenDir(SEASON, seed), regs, calendar);
+  if (check.inputsChanged.length > 0) console.log(`inputs changed since the golden was made: ${check.inputsChanged.join(', ')}`);
+  if (check.manifest.node !== check.nodeNow) console.log(`golden made on Node ${check.manifest.node}, now ${check.nodeNow} (DESIGN.md §11)`);
+  for (const m of check.mismatches) console.log(`  differs: ${m.path}`);
+  if (check.mismatches.length === 0) console.log(`golden ok: ${check.manifest.files.length} files byte-identical`);
+  else {
+    console.log(`${check.mismatches.length} files differ. If the change is intended: pnpm -F @f1sim/runner golden --update`);
+    process.exitCode = 1;
+  }
+}
+
 const [command, ...rest] = process.argv.slice(2);
 switch (command) {
   case 'race':
@@ -121,7 +143,10 @@ switch (command) {
   case 'replay':
     replay(rest);
     break;
+  case 'golden':
+    await golden(rest);
+    break;
   default:
-    console.error(`unknown command "${command ?? ''}". commands: race, season, replay`);
+    console.error(`unknown command "${command ?? ''}". commands: race, season, replay, golden`);
     process.exitCode = 1;
 }

@@ -19,11 +19,13 @@
     "typecheck": "tsc -p tsconfig.json",
     "race": "tsx --conditions=@f1sim/source src/cli.ts race",
     "replay": "tsx --conditions=@f1sim/source src/cli.ts replay",
-    "season": "tsx --conditions=@f1sim/source src/cli.ts season"
+    "season": "tsx --conditions=@f1sim/source src/cli.ts season",
+    "golden": "tsx --conditions=@f1sim/source src/cli.ts golden"
   },
   "dependencies": {
     "@f1sim/agents": "workspace:*",
     "@f1sim/core": "workspace:*",
-    "@f1sim/harness": "workspace:*"
+    "@f1sim/harness": "workspace:*",
+    "zod": "^4.6.7"
   }
 }

@@ -1,0 +1,196 @@
+{
+ "schema": "golden/1",
+ "season": 2026,
+ "seed": 2026,
+ "node": "v24.11.1",
+ "inputs": {
+  "regulations": "89c7fb14",
+  "tracks": "132d02bb"
+ },
+ "teams": [
+  {
+   "team": "heuristic-01",
+   "agent": "heuristic"
+  },
+  {
+   "team": "heuristic-02",
+   "agent": "heuristic"
+  },
+  {
+   "team": "heuristic-03",
+   "agent": "heuristic"
+  },
+  {
+   "team": "heuristic-04",
+   "agent": "heuristic"
+  },
+  {
+   "team": "heuristic-05",
+   "agent": "heuristic"
+  },
+  {
+   "team": "heuristic-06",
+   "agent": "heuristic"
+  },
+  {
+   "team": "heuristic-07",
+   "agent": "heuristic"
+  },
+  {
+   "team": "heuristic-08",
+   "agent": "heuristic"
+  },
+  {
+   "team": "heuristic-09",
+   "agent": "heuristic"
+  },
+  {
+   "team": "heuristic-10",
+   "agent": "heuristic"
+  }
+ ],
+ "files": [
+  {
+   "path": "season.json",
+   "sha256": "9ed754ee0ccc63816dda55c9c06d6e6b79cc7eb5455edb933cfae4cc3520f0bd"
+  },
+  {
+   "path": "gp01_lakeside/race.json",
+   "sha256": "ac645ef0f10046a24aba800357632203ce1f58852e8bbe6e815153b892e438ba"
+  },
+  {
+   "path": "gp02_desert-sweep/race.json",
+   "sha256": "a4d4e1ec4221c49f963b8792825c2fed713e0d9db583649f2948d61151b30c43"
+  },
+  {
+   "path": "gp03_oasis/race.json",
+   "sha256": "ba51c91d010f58e56be0a3b551f2877dc669510edd953c2a46480823dd1fc41c"
+  },
+  {
+   "path": "gp04_pinewood/race.json",
+   "sha256": "8022c40498bba3375579a52945d997dc4b8ae13f4d38c8138815ba9d36d46dc5"
+  },
+  {
+   "path": "gp05_harbour-street/race.json",
+   "sha256": "ac0fef50113b4f09ce8fd7da3053b1ae245d8342fa86e2eb8d503f3c94fac137"
+  },
+  {
+   "path": "gp06_canyon/race.json",
+   "sha256": "c9bbf22790d1f4023fda076acdb7c279d0d73d100bab61c67e31e7e18858b371"
+  },
+  {
+   "path": "gp07_mixed/race.json",
+   "sha256": "d84f00412b429c8c48abaeea8429bbb7357f1b8ca185e974f1cc2a40882a31c8"
+  },
+  {
+   "path": "gp08_tight-street/race.json",
+   "sha256": "fc2878dd2c5508524881a3b54510f5227b35d252059adeebc8e2a997c958e20c"
+  },
+  {
+   "path": "gp09_vineyard/race.json",
+   "sha256": "8a441cb3e734ba3e67ddb0509dd7dd2e3096e408469a304123e94c2035f99636"
+  },
+  {
+   "path": "gp10_coastal/race.json",
+   "sha256": "97533d34c20c4a2c8f54fe2f28c3d364f40652212b14f6a77b25b19a9fd9c366"
+  },
+  {
+   "path": "gp11_forest-ring/race.json",
+   "sha256": "572f32d67535a5a2b9af7096b0ab663758ff383b906e091f53095d1942eb12ab"
+  },
+  {
+   "path": "gp12_airfield/race.json",
+   "sha256": "8c67d177fd5f56e8e1ecb0f9130bbcb8afb31d5a1106bcbd88405e1d60555b74"
+  },
+  {
+   "path": "gp13_hillside/race.json",
+   "sha256": "1ace57bce93b038e07f80174f563a9b335bfa9f5ba3b783ca29c2593ffb1d993"
+  },
+  {
+   "path": "gp14_plateau/race.json",
+   "sha256": "322936c356ec1311550617eef5319d4f0b84be3412270347d02172d6396c7c7b"
+  },
+  {
+   "path": "gp15_fast-oval/race.json",
+   "sha256": "6c0add6d16810892285ec9d78ed8b71583073e2604d0a9785e47ee3a720da9a8"
+  },
+  {
+   "path": "gp16_quarry/race.json",
+   "sha256": "24012a1a30e29a64720238853a07b658626b502d12d8d87c1d4ca47cd97fb3ba"
+  },
+  {
+   "path": "gp17_marina/race.json",
+   "sha256": "8cf43b41a00602e30eb27579adddac874b29be72ac9c9417f9e3c061afaf221b"
+  },
+  {
+   "path": "gp18_riverside-night/race.json",
+   "sha256": "522596a93a0802e9ccdd6cb99ffe0abee0dad4b587c794d50ba26a0cd65450aa"
+  },
+  {
+   "path": "gp19_sunset-boulevard/race.json",
+   "sha256": "9f73062c7c6c7d59c437bc79a9596d0812c0e8a8a2187bd74f7a805cb756945b"
+  },
+  {
+   "path": "gp20_old-town/race.json",
+   "sha256": "be314923fbb54c20c3c4643e58146aeddce3df390048b484588b5c42773643f6"
+  },
+  {
+   "path": "gp21_stadium-loop/race.json",
+   "sha256": "2427a5e5b9f438c0efa1fe25e14ec6ba9b31e5d43e1e5bc3832eb976c5882ddd"
+  },
+  {
+   "path": "gp22_river-park/race.json",
+   "sha256": "adab260817807f1796e20847d8394fed7140952fabe8eac058f0db92f4885470"
+  },
+  {
+   "path": "gp23_highland/race.json",
+   "sha256": "f164f61ec21ed8daa6157082667209cd81f857fea83d2dc20137c400cb80c277"
+  },
+  {
+   "path": "gp24_glacier/race.json",
+   "sha256": "299729d433daf9b230fa0e36f3d26569c6b95495bbbf5b0c163623405dc490ec"
+  }
+ ],
+ "standings": [
+  {
+   "team": "heuristic-07",
+   "points": 393
+  },
+  {
+   "team": "heuristic-10",
+   "points": 361
+  },
+  {
+   "team": "heuristic-01",
+   "points": 340
+  },
+  {
+   "team": "heuristic-08",
+   "points": 283
+  },
+  {
+   "team": "heuristic-05",
+   "points": 246
+  },
+  {
+   "team": "heuristic-09",
+   "points": 207
+  },
+  {
+   "team": "heuristic-06",
+   "points": 199
+  },
+  {
+   "team": "heuristic-04",
+   "points": 168
+  },
+  {
+   "team": "heuristic-02",
+   "points": 135
+  },
+  {
+   "team": "heuristic-03",
+   "points": 87
+  }
+ ]
+}
