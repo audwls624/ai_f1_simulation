@@ -67,8 +67,9 @@ teams:
     command: [opencode, run, -m, opencode/glm-5.3-flash-free, "{prompt}"]
 
   # ── Antigravity CLI (agy): Gemini 3.8 Flash (헤드리스) ────────────────
-  # 헤드리스(-p)에서는 셸 명령 승인을 물을 수 없어 거부된다 → 이 세션에만 쓰는 --settings로 ./f1sim·python3·node만 허용
-  # (Claude 팀과 같은 범위, settings.json에는 저장되지 않는다). --mode auto는 이 계정에서 쓸 수 없다.
+  # 헤드리스(-p)에서는 셸 명령 승인을 물을 수 없어 거부되고, agy는 거부되면 세션을 끝낸다 (첫 전체 스파 시험: head -n 2 ./f1sim).
+  # 이 세션에만 쓰는 --settings로 ./f1sim·python3·node + 읽기용 명령(head·cat·ls·wc·grep·jq)과 mkdir만 허용 (사용자 결정).
+  # settings.json에는 저장되지 않는다. --mode auto는 이 계정에서 쓸 수 없다.
   - team: flash
     agent: coding
     label: antigravity
@@ -82,7 +83,7 @@ teams:
       - --mode
       - accept-edits
       - --settings
-      - '{"permissions":{"allow":["command(./f1sim)","command(python3)","command(node)"]}}'
+      - '{"permissions":{"allow":["command(./f1sim)","command(python3)","command(node)","command(head)","command(cat)","command(ls)","command(wc)","command(grep)","command(jq)","command(mkdir)"]}}'
 
   # ── 기준선 (12절: LLM 팀이 휴리스틱을 꾸준히 못 이기면 툴·패킷을 재검토) ─────────
   - { team: heuristic-01, agent: heuristic }

@@ -84,21 +84,24 @@ async function loadRuns(): Promise<void> {
   }
   const params = new URLSearchParams(location.search);
   runSel.value = params.get('run') ?? runs.at(-1)?.id ?? '';
-  fillGps(Number(params.get('gp') ?? 0));
+  fillGps(params.get('race'), Number(params.get('gp') ?? 0));
   await loadRace();
 }
 
-function fillGps(gp: number): void {
+/** GP 목록. 값은 레이스 파일 경로 — 한 폴더에 같은 번호의 GP가 둘 있어도 구분된다. 선택: race(폴더 이름) 또는 gp 번호. */
+function fillGps(race: string | null, gp = 0): void {
   const run = runs.find((r) => r.id === runSel.value);
-  gpSel.replaceChildren(...(run?.gps ?? []).map((g) => new Option(`${g.gp} · ${g.track}`, String(g.gp))));
-  if (gp && run?.gps.some((g) => g.gp === gp)) gpSel.value = String(gp);
+  const gps = run?.gps ?? [];
+  gpSel.replaceChildren(...gps.map((g) => new Option(`${g.gp} · ${g.track}`, g.path)));
+  const pick = gps.find((g) => race !== null && g.path.split('/')[1] === race) ?? gps.find((g) => g.gp === gp);
+  if (pick) gpSel.value = pick.path;
 }
 
 async function loadRace(): Promise<void> {
   const run = runs.find((r) => r.id === runSel.value);
-  const entry = run?.gps.find((g) => String(g.gp) === gpSel.value) ?? run?.gps[0];
+  const entry = run?.gps.find((g) => g.path === gpSel.value) ?? run?.gps[0];
   if (!run || !entry) return;
-  history.replaceState(null, '', `?run=${encodeURIComponent(run.id)}&gp=${entry.gp}`);
+  history.replaceState(null, '', `?run=${encodeURIComponent(run.id)}&race=${encodeURIComponent(entry.path.split('/')[1] ?? '')}`);
   const log = RaceLogSchema.parse(JSON.parse(await text(`/runs/${entry.path}`)));
   const season = log.meta.season;
   const [rules, model, csv, meta] = await Promise.all([
@@ -433,7 +436,7 @@ scrub.addEventListener('input', () => {
   render();
 });
 runSel.addEventListener('change', () => {
-  fillGps(0);
+  fillGps(null);
   void loadRace();
 });
 gpSel.addEventListener('change', () => void loadRace());
