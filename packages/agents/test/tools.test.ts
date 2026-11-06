@@ -91,7 +91,7 @@ describe('makeDesignTools / windTunnel (DESIGN.md §9, §16)', () => {
       chassis: { weight_reduction: 1, mech_grip: 1, tire_management: 1, wheelbase: 'long' },
       aero: { aero_efficiency: 1, philosophy: 'wing', dirty_air_resistance: 1, drs_effect: 1 },
     } as const;
-    expect(() => tools.windTunnel(overBudget, setup, 'mixed')).toThrow(/spec: total cost 106\.00 credits exceeds/);
+    expect(() => tools.windTunnel(overBudget, setup, 'mixed')).toThrow(/spec: total cost 181\.00 credits exceeds/);
     expect(tools.remaining).toBe(2);
     // 실패한 호출이 난수를 쓰지 않았으므로, 새 툴의 첫 결과와 같다.
     const fresh = makeDesignTools(regs, tracks, 1, makeRng(9));

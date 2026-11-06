@@ -229,7 +229,10 @@ export function derive(
   const drag_coeff = halfRho * dragArea;
   const downforce_coeff = m.aero.aero_grip_mu * halfRho * downforceArea;
 
-  const mech_grip = lerp(m.chassis.mech_grip_mu, ch.mech_grip) * wheelbase.mech_grip * inst.mechGripMult;
+  // 타이어 하중 민감도: 무거울수록 마찰계수가 준다 (최소 무게 기준). 4절 "kg당 0.03 s/lap"을 맞추는 항.
+  const loadFactor = (regs.limits.min_weight_kg / mass_kg) ** m.chassis.load_sensitivity;
+  const mech_grip =
+    lerp(m.chassis.mech_grip_mu, ch.mech_grip) * wheelbase.mech_grip * inst.mechGripMult * loadFactor;
 
   const fuel_per_lap_kg =
     (track.length_m / M_PER_KM) * m.fuel.per_km_kg * (1 - m.fuel.thermal_efficiency_saving * pt.thermal_efficiency);

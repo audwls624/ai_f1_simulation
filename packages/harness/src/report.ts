@@ -2,7 +2,7 @@
  * 설계 탐색 리포트 (12절: 결과는 harness/reports/<date>.md).
  */
 import { SPEC_PARAMS, cost, profile, type CarSpec, type Regulations } from '@f1sim/core';
-import { architectureWins, designMatrix, maxWinShare, varianceContributions, winners } from './design.js';
+import { RACE_ONLY_PARAMS, architectureWins, designMatrix, maxWinShare, uniformLevel, varianceContributions, winners } from './design.js';
 import type { DesignRun } from './explore.js';
 
 /** 12절 지표 1–3의 통과 기준. */
@@ -60,6 +60,10 @@ export function designReport(run: DesignRun, regs: Regulations, date: string, ex
   lines.push(
     `규정 ${regs.season} · 캘린더 ${run.tracks.length}전 · 스펙 ${run.specs.length}개 (${o.sampling}, seed ${o.seed}) · ` +
       '스펙×트랙마다 최적 셋업(윙 0–10 × 지상고 × ERS 모드), 건조 baseLap.',
+    '',
+    o.fixRaceOnly
+      ? `레이스 전용 파라미터(${RACE_ONLY_PARAMS.join(', ')})는 모든 스펙에서 균등 배분값 ${uniformLevel(regs).toFixed(3)}로 고정 — 랩타임만 보는 비교에서는 값이 0이라, 랜덤으로 두면 "덜 낭비한" 스펙이 배분과 무관하게 이긴다. 레이스 가치는 M4 전략 탐색에서.`
+      : '모든 파라미터 랜덤 (--all-random).',
     '',
   );
   lines.push('## 지표 (DESIGN.md 12절)', '', '| 지표 | 값 | 기준 | 결과 |', '| --- | --- | --- | --- |');

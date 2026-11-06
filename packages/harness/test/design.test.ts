@@ -6,6 +6,7 @@ import {
   bestSetupLap,
   designMatrix,
   maxWinShare,
+  raceOnlyFixed,
   sampleSpec,
   varianceContributions,
   winners,
@@ -27,9 +28,21 @@ describe('sampleSpec', () => {
 
   it('budget-volume: uniform inside the cap', () => {
     const rng = makeRng(2);
-    const costs = Array.from({ length: 300 }, () => cost(sampleSpec(regs, rng, 'budget-volume'), regs));
+    const costs = Array.from({ length: 300 }, () => cost(sampleSpec(regs, rng, { sampling: 'budget-volume' }), regs));
     expect(Math.max(...costs)).toBeLessThanOrEqual(regs.cost.cap_credits);
     expect(Math.min(...costs)).toBeLessThan(regs.cost.cap_credits / 2);
+  });
+
+  it('holds fixed parameters and spends the rest of the cap on the others', () => {
+    const rng = makeRng(8);
+    const fixed = raceOnlyFixed(regs);
+    for (let i = 0; i < 50; i++) {
+      const spec = sampleSpec(regs, rng, { fixed });
+      expect(spec.powertrain.reliability).toBe(fixed.reliability);
+      expect(spec.chassis.tire_management).toBe(fixed.tire_management);
+      expect(spec.aero.dirty_air_resistance).toBe(fixed.dirty_air_resistance);
+      expect(cost(spec, regs)).toBeGreaterThan(regs.cost.cap_credits - 1e-6);
+    }
   });
 
   it('is deterministic for a seed and mixes architectures', () => {
@@ -95,7 +108,7 @@ describe('metrics (DESIGN.md §12)', () => {
 
 describe('runDesignExploration', () => {
   it('gives the same results with or without worker threads', async () => {
-    const opts = { season: 2026, count: 3, seed: 11, sampling: 'budget-surface' as const };
+    const opts = { season: 2026, count: 3, seed: 11, sampling: 'budget-surface' as const, fixRaceOnly: true };
     const inline = await runDesignExploration({ ...opts, workers: 1 });
     const threaded = await runDesignExploration({ ...opts, workers: 2 });
     expect(threaded.results).toEqual(inline.results);

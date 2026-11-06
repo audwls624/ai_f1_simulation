@@ -2,7 +2,7 @@
  * 하네스 CLI. `pnpm -F @f1sim/harness <command>`.
  *   gen-tracks   track-briefs.ts → data/tracks/<id>.csv, .yaml
  *   design       12절 설계 공간 탐색 → reports/<date>-design.md
- *                [--specs 2000] [--seed 2026] [--sampling budget-surface|budget-volume] [--workers N]
+ *                [--specs 2000] [--seed 2026] [--sampling budget-surface|budget-volume] [--workers N] [--all-random]
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -45,6 +45,7 @@ async function design(args: string[]): Promise<void> {
       seed: { type: 'string', default: String(SEASON) },
       sampling: { type: 'string', default: 'budget-surface' },
       workers: { type: 'string', default: String(defaultWorkers()) },
+      'all-random': { type: 'boolean', default: false },
     },
   });
   const sampling = values.sampling as Sampling;
@@ -55,12 +56,13 @@ async function design(args: string[]): Promise<void> {
     count: Number(values.specs),
     seed: Number(values.seed),
     sampling,
+    fixRaceOnly: !values['all-random'],
     workers: Number(values.workers),
   });
   const regs = loadRegulations(SEASON);
   const date = new Date().toISOString().slice(0, 10);
   mkdirSync(REPORTS_DIR, { recursive: true });
-  const suffix = sampling === 'budget-surface' ? '' : `-${sampling}`;
+  const suffix = `${sampling === 'budget-surface' ? '' : `-${sampling}`}${values['all-random'] ? '-all-random' : ''}`;
   const out = join(REPORTS_DIR, `${date}-design${suffix}.md`);
   writeFileSync(out, designReport(run, regs, date, [heuristicSection(run, regs, Number(values.seed))]));
   const m = designMetrics(run);
@@ -84,7 +86,10 @@ function heuristicSection(run: Awaited<ReturnType<typeof runDesignExploration>>,
         .map(([k, v]) => `${k} ${(v as number).toFixed(2)}`)
         .join(', '),
     `- 시즌 시간 ${time.toFixed(1)} s — 랜덤 스펙 ${run.seasonTimes.length}개 중 ${better}개가 더 빠름 (상위 ${((better / run.seasonTimes.length) * 100).toFixed(1)}%)`,
-    `- 랜덤 최고 대비 +${(time - bestRandom).toFixed(1)} s, 풍동 ${regs.tools.wind_tunnel.runs_preseason - tools.remaining}회 사용`,
+    `- 랜덤 최고 대비 ${time - bestRandom >= 0 ? '+' : '−'}${Math.abs(time - bestRandom).toFixed(1)} s, 풍동 ${regs.tools.wind_tunnel.runs_preseason - tools.remaining}회 사용`,
+    ...(run.options.fixRaceOnly
+      ? ['- 참고: 휴리스틱은 레이스 전용 파라미터를 줄일 수 있지만 랜덤 스펙은 그 값을 고정했으므로 같은 조건의 비교가 아니다 (랩타임만 보면 휴리스틱이 유리).']
+      : []),
   ].join('\n');
   return { title: '휴리스틱 설계 (기준선)', body };
 }

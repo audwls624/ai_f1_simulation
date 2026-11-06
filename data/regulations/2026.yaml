@@ -14,17 +14,17 @@ season: 2026
 cost:
   cap_credits: 100          # 프리시즌 설계 총 예산
   exponent: 2               # 비용 = w · x^p. 14절: p는 하네스가 결정
-  weights:                  # 크레딧 (x = 1.0 기준). 아키텍처(philosophy, wheelbase)는 비용 0, 변경 불가
-    aero_efficiency: 20
-    thermal_efficiency: 18
-    weight_reduction: 14
-    mech_grip: 12
-    tire_management: 10
-    ers_capacity: 8
-    reliability: 8
-    cooling: 6
-    dirty_air_resistance: 6
-    drs_effect: 4
+  weights:                  # 크레딧 (x = 1.0 기준). 아키텍처는 비용 0, 변경 불가. TODO(balance): M2에서 출발값 ×1.7 (합 181)
+    aero_efficiency: 34
+    thermal_efficiency: 31
+    weight_reduction: 24
+    mech_grip: 20
+    tire_management: 17
+    ers_capacity: 14
+    reliability: 14
+    cooling: 10
+    dirty_air_resistance: 10
+    drs_effect: 7
 
 # ── 3절: 고정 제약 ──────────────────────────────────────────────────────
 limits:
@@ -52,7 +52,7 @@ penalties:
 # 3절: 재제출도 실패하면 이 스펙 (+ 첫 GP 그리드 최후위).
 # 기본 전략(1스톱 medium→hard)은 전략 DSL 스키마가 생기는 M3에서 추가한다.
 fallback:
-  spec:                         # TODO(balance): 문서에 값 없음. 전부 0.7 (3절 예시, 약 52 크레딧)
+  spec:                         # TODO(balance): 문서에 값 없음. 전부 0.7 (약 89 크레딧)
     powertrain: { thermal_efficiency: 0.7, reliability: 0.7, ers_capacity: 0.7, cooling: 0.7 }
     chassis: { weight_reduction: 0.7, mech_grip: 0.7, tire_management: 0.7, wheelbase: long }
     aero: { aero_efficiency: 0.7, philosophy: wing, dirty_air_resistance: 0.7, drs_effect: 0.7 }
@@ -148,7 +148,7 @@ physics:
 car:
   power:
     fuel_energy_mj_per_kg: 43                 # TODO(balance): 연료 발열량. 출력 = 연료 유량 × 발열량 × η
-    thermal_efficiency_eta: [0.44, 0.52]      # TODO(balance): thermal_efficiency → 열효율 η (약 525–621 kW)
+    thermal_efficiency_eta: [0.445, 0.515]    # TODO(balance): thermal_efficiency → 열효율 η (약 530–615 kW)
     reliability_power_loss: 0.02              # TODO(balance): reliability 1.0이면 출력 −2% (보수적 맵)
 
   cooling:                                    # 4절 상호작용 1: cooling × 기온
@@ -168,22 +168,22 @@ car:
     modes:                                    # TODO(balance): 전부
       harvest:  { power_kw: -20, depletion: 0.0,  boost_mult: 0.5 }
       balanced: { power_kw: 0,   depletion: 0.0,  boost_mult: 1.0 }
-      attack:   { power_kw: 40,  depletion: 0.75, boost_mult: 1.5 }
+      attack:   { power_kw: 60,  depletion: 0.75, boost_mult: 1.5 }
 
   aero:
     downforce_area_m2: [3.0, 5.0]             # TODO(balance): wing_level 0 → 10의 Cl·A
-    drag_area_m2: [1.0, 1.6]                  # TODO(balance): wing_level 0 → 10의 Cd·A
+    drag_area_m2: [1.0, 2.0]                  # TODO(balance): wing_level 0 → 10의 Cd·A
     downforce_curve_exponent: 0.6             # TODO(balance): < 1이면 윙을 올릴수록 다운포스 증가폭이 준다
-    drag_curve_exponent: 1.5                  # TODO(balance): > 1이면 윙을 올릴수록 L/D 악화 (효율 곡선)
+    drag_curve_exponent: 2.0                  # TODO(balance): > 1이면 윙을 올릴수록 L/D 악화 (효율 곡선)
     aero_grip_mu: 1.5                         # TODO(balance): 다운포스 하중에 대한 타이어 마찰계수
-    efficiency_drag_cut: 0.10                 # TODO(balance): aero_efficiency 1.0이면 같은 다운포스에서 드래그 −10%
-    drs_gain: [0.10, 0.22]                    # TODO(balance): drs_effect → DRS 개방 시 드래그 감소율
-    drs_drag_cost: 0.015                      # TODO(balance): drs_effect 1.0의 효율 손실 (상시 드래그 +1.5%)
+    efficiency_drag_cut: 0.20                 # TODO(balance): aero_efficiency 1.0이면 같은 다운포스에서 드래그 −20%
+    drs_gain: [0.08, 0.28]                    # TODO(balance): drs_effect → DRS 개방 시 드래그 감소율
+    drs_drag_cost: 0.005                      # TODO(balance): drs_effect 1.0의 효율 손실 (상시 드래그 +0.5%)
     dirty_air_loss: [0.35, 0.12]              # TODO(balance): dirty_air_resistance → 앞차 뒤 다운포스 손실률
     # [philosophy][ride_height] 다운포스·드래그 승수. floor는 low에서만 효율을 낸다 (셋업 윈도우가 좁다).
     ride_height:                              # TODO(balance): 전부
       floor:
-        low:  { downforce: 1.08, drag: 0.97 }
+        low:  { downforce: 1.05, drag: 0.985 }
         mid:  { downforce: 0.98, drag: 1.00 }
         high: { downforce: 0.92, drag: 1.00 }
       wing:
@@ -192,13 +192,14 @@ car:
         high: { downforce: 0.95, drag: 1.00 }
 
   chassis:
-    mech_grip_mu: [1.45, 1.75]                # TODO(balance): mech_grip → 기계적 마찰계수 μ
-    wheelbase:                                # TODO(balance): long = 고속 안정·에어로 플랫폼, short = 저속 민첩
-      long:  { downforce: 1.03, mech_grip: 1.00 }
-      short: { downforce: 1.00, mech_grip: 1.03 }
+    mech_grip_mu: [1.580, 1.620]              # TODO(balance): mech_grip → 기계적 마찰계수 μ
+    load_sensitivity: 0.3                     # TODO(balance): μ × (최소 무게 / 무게)^이 값 — 타이어 하중 민감도
+    wheelbase:                                # TODO(balance): long = 고속 안정·에어로 플랫폼, short = 저속 민첩 (M2: 캘린더를 반씩 나눔)
+      long:  { downforce: 1.025, mech_grip: 1.00 }
+      short: { downforce: 1.00, mech_grip: 1.016 }
 
   instability:
-    bumpy_from: 0.5                           # TODO(balance): bumpiness가 이 값 이상이면 범피 트랙
+    bumpy_from: 0.4                           # TODO(balance): bumpiness가 이 값 이상이면 범피 트랙
     floor_min_mech_grip: 0.5                  # 4절 상호작용 2: floor × mech_grip < 0.5 → 불안정
     floor:                                    # floor × (mech_grip < 0.5 또는 범피 트랙)
       downforce_loss: 0.06                    # TODO(balance): "랩타임 +"를 다운포스 손실로 표현

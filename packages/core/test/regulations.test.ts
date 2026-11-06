@@ -54,9 +54,10 @@ describe('parseRegulations (data/regulations/2026.yaml)', () => {
   // 3절의 서술. 하네스가 가중치를 바꾸면 문서와 함께 갱신한다.
   it('matches the cost statements of DESIGN.md §3', () => {
     const weightSum = SPEC_PARAMS.reduce((s, p) => s + regs.cost.weights[p.key], 0);
-    expect(weightSum).toBe(106);
-    expect(cost(uniformSpec(0.7), regs)).toBeCloseTo(51.94, 6); // "전부 0.7이면 약 52 크레딧"
+    expect(weightSum).toBe(181);
     expect(cost(uniformSpec(1), regs)).toBeGreaterThan(regs.cost.cap_credits); // "전부 1.0은 불가능"
+    expect(cost(uniformSpec(0.74), regs)).toBeLessThanOrEqual(regs.cost.cap_credits); // "0.74에서 캡에 닿는다"
+    expect(cost(uniformSpec(0.75), regs)).toBeGreaterThan(regs.cost.cap_credits);
   });
 
   it('rejects unknown keys with a path to the key', () => {
@@ -97,7 +98,7 @@ describe('cost', () => {
   it('equals Σ w·x^p for the DESIGN.md §4 example spec', () => {
     const expected = SPEC_PARAMS.reduce((s, p) => s + regs.cost.weights[p.key] * p.get(docExampleSpec) ** 2, 0);
     expect(cost(docExampleSpec, regs)).toBeCloseTo(expected, 12);
-    expect(cost(docExampleSpec, regs)).toBeCloseTo(54.4412, 4);
+    expect(cost(docExampleSpec, regs)).toBeCloseTo(93.1454, 4);
   });
 
   it('ignores architecture choices (cost 0)', () => {
@@ -131,17 +132,20 @@ describe('validateSpec', () => {
     expect(issues).toHaveLength(1);
     expect(issues[0]?.path).toBe('');
     expect(issues[0]?.message).toBe(
-      'total cost 106.00 credits exceeds the cost cap of 100 credits by 6.00. ' +
+      'total cost 181.00 credits exceeds the cost cap of 100 credits by 81.00. ' +
         'Each item costs weight × value^2; the most expensive are ' +
-        'aero.aero_efficiency 20.00, powertrain.thermal_efficiency 18.00, chassis.weight_reduction 14.00.',
+        'aero.aero_efficiency 34.00, powertrain.thermal_efficiency 31.00, chassis.weight_reduction 24.00.',
     );
   });
 
   it('accepts a spec exactly at the cap', () => {
-    // aero_efficiency만 x로 올려 정확히 100 크레딧에 맞춘다.
-    const base = withSpec(uniformSpec(0.97), { aero: { aero_efficiency: 0 } });
+    // aero_efficiency만 x로 올려 정확히 캡에 맞춘다 (나머지는 캡을 넘지 않는 균등값).
+    const others = SPEC_PARAMS.reduce((s, p) => s + (p.key === 'aero_efficiency' ? 0 : regs.cost.weights[p.key]), 0);
+    const level = Math.sqrt((regs.cost.cap_credits - regs.cost.weights.aero_efficiency * 0.81) / others);
+    const base = withSpec(uniformSpec(level), { aero: { aero_efficiency: 0 } });
     const rest = cost(base, regs);
     const x = Math.sqrt((regs.cost.cap_credits - rest) / regs.cost.weights.aero_efficiency);
+    expect(x).toBeLessThanOrEqual(1);
     const spec = withSpec(base, { aero: { aero_efficiency: x } });
     expect(cost(spec, regs)).toBeCloseTo(100, 9);
     expect(validateSpec(spec, regs).ok).toBe(true);

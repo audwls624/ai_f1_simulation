@@ -47,20 +47,20 @@ AI 모델(나중에는 사람)이 팀이 되어, 같은 규정과 같은 정보�
 
 | 파라미터 | 가중치 w (크레딧, x=1.0 기준) | 업그레이드 가능 |
 | --- | --- | --- |
-| aero\_efficiency | 20 | 예 |
-| thermal\_efficiency | 18 | 예 |
-| weight\_reduction | 14 | 예 |
-| mech\_grip | 12 | 예 |
-| tire\_management | 10 | 예 |
-| ers\_capacity | 8 | 예 |
-| reliability | 8 | 예 |
-| cooling | 6 | 예 |
-| dirty\_air\_resistance | 6 | 예 |
-| drs\_effect | 4 | 예 |
+| aero\_efficiency | 34 | 예 |
+| thermal\_efficiency | 31 | 예 |
+| weight\_reduction | 24 | 예 |
+| mech\_grip | 20 | 예 |
+| tire\_management | 17 | 예 |
+| ers\_capacity | 14 | 예 |
+| reliability | 14 | 예 |
+| cooling | 10 | 예 |
+| dirty\_air\_resistance | 10 | 예 |
+| drs\_effect | 7 | 예 |
 | philosophy (floor/wing) | 0 | 아니오 |
 | wheelbase (short/long) | 0 | 아니오 |
 
-가중치 합은 106이므로 전부 1.0은 불가능하고, 전부 0.7이면 약 52 크레딧이 든다. 이 값들은 출발점이고 밸런스 하네스(12절)가 조정한다.
+가중치 합은 181이므로 전부 1.0은 불가능하고, 모든 항목을 같은 값으로 두면 0.74에서 캡(100)에 닿는다. 이 값들은 밸런스 하네스(12절)가 조정한다 — M2에서 출발값(합 106, 비율은 그대로)을 ×1.7 했다. 합 106이면 cooling 하나만 빼고 전부 1.0이 가능해서 배분 선택이 사라졌다 (harness/reports/2026-11-06-design-baseline.md).
 
 **고정 제약**
 
@@ -558,7 +558,7 @@ LLM을 붙이기 전에 설계 공간과 전략 공간에 지배 해가 없는�
 
 **설계 공간 탐색**
 
-- 랜덤 스펙 2,000개 (예산 제약 내 균등 샘플링) × 24 트랙 × 기본 셋업·기본 전략 × 시드 1개. 순수 랩타임 비교만 하므로 레이스 없이 빠르다.
+- 랜덤 스펙 2,000개 (예산을 다 쓰는 배분을 균등하게 샘플링) × 24 트랙 × 트랙별 최적 셋업(윙 × 지상고 × ERS 모드) × 시드 1개. 순수 랩타임 비교만 하므로 레이스 없이 빠르다. 랩타임에 효과가 없는 레이스 전용 파라미터(reliability, tire_management, dirty_air_resistance)는 모든 스펙에서 균등 배분값으로 고정한다 — 랜덤으로 두면 그쪽에 예산을 덜 쓴 스펙이 배분과 무관하게 이긴다. (M2 결정. `--all-random`, `--sampling budget-volume`으로 원래 방식도 돌릴 수 있다.)
 - 지표 1 — 트랙별 최속 스펙의 집중도: 어떤 스펙 하나가 최속인 트랙 비율 최대값 < 35%. 넘으면 트랙 다양성이나 비용 곡선을 조정.
 - 지표 2 — 파라미터 기여도: 시즌 총 랩타임을 스펙 파라미터로 회귀. 한 파라미터가 분산의 50% 이상을 설명하면 가중치나 효과 계수 조정.
 - 지표 3 — 아키텍처 균형: floor/wing, short/long 각각이 최속인 트랙 수가 24 중 6 이상.

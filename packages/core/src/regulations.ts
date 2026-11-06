@@ -129,6 +129,7 @@ const CarModelSchema = z.strictObject({
   }),
   chassis: z.strictObject({
     mech_grip_mu: pairOf(positive),
+    load_sensitivity: nonNegative,
     wheelbase: z.record(WheelbaseSchema, z.strictObject({ downforce: positive, mech_grip: positive })),
   }),
   instability: z.strictObject({

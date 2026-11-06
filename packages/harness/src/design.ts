@@ -18,6 +18,7 @@ import {
   type RideHeight,
   type Rng,
   type Setup,
+  type SpecParamKey,
   type Track,
 } from '@f1sim/core';
 
@@ -42,27 +43,57 @@ function specFrom(values: readonly number[], philosophy: 'floor' | 'wing', wheel
 }
 
 /**
- * 랜덤 스펙 한 개.
- * - budget-surface (기본): 방향을 [0,1]^10에서 균등하게 뽑고, 코스트 캡에 닿을 때까지 늘린다 (각 값 ≤ 1).
- *   예산을 다 쓰는 스펙끼리 배분만 비교한다 — 업그레이드가 없으면 남긴 크레딧은 쓸 데가 없다.
- * - budget-volume: 12절 문구 그대로 "예산 제약 내 균등" (거절 샘플링). 평균 지출이 캡의 1/3 정도라
- *   지출 많은 스펙이 어디서나 이기므로 배분 비교에는 덜 맞다.
- * 아키텍처(philosophy, wheelbase)는 각각 반반.
+ * 기본 랩타임에 효과가 없는 레이스 전용 파라미터 (마모·더티 에어·고장은 레이스에서만 값이 생긴다).
+ * 랩타임만 비교하는 설계 탐색(12절 지표 1–3)에서 이것들을 랜덤으로 두면, "레이스 전용에 예산을 덜 낭비한" 스펙이
+ * 트랙을 가리지 않고 이겨서 배분의 차이가 묻힌다. 그래서 기본은 모든 스펙에서 균등 배분값으로 고정한다.
  */
-export function sampleSpec(regs: Regulations, rng: Rng, sampling: Sampling = 'budget-surface'): CarSpec {
+export const RACE_ONLY_PARAMS = ['reliability', 'tire_management', 'dirty_air_resistance'] as const satisfies readonly SpecParamKey[];
+
+export interface SampleOptions {
+  readonly sampling?: Sampling;
+  /** 고정할 파라미터 값. 나머지가 남은 예산을 나눠 쓴다. */
+  readonly fixed?: Partial<Record<SpecParamKey, number>>;
+}
+
+/** 모든 파라미터를 같은 값으로 둘 때 정확히 캡에 닿는 값. */
+export function uniformLevel(regs: Regulations): number {
+  const weightSum = SPEC_PARAMS.reduce((s, p) => s + regs.cost.weights[p.key], 0);
+  return Math.min(1, (regs.cost.cap_credits / weightSum) ** (1 / regs.cost.exponent));
+}
+
+/** 설계 탐색 기본값: 레이스 전용 파라미터를 균등 배분값으로 고정. */
+export function raceOnlyFixed(regs: Regulations): Partial<Record<SpecParamKey, number>> {
+  const u = uniformLevel(regs);
+  return Object.fromEntries(RACE_ONLY_PARAMS.map((k) => [k, u]));
+}
+
+/**
+ * 랜덤 스펙 한 개.
+ * - budget-surface (기본): 방향을 [0,1]^n에서 균등하게 뽑고, 코스트 캡에 닿을 때까지 늘린다 (각 값 ≤ 1).
+ *   예산을 다 쓰는 스펙끼리 배분만 비교한다 — 업그레이드가 없으면 남긴 크레딧은 쓸 데가 없다.
+ * - budget-volume: 12절 문구 그대로 "예산 제약 내 균등" (거절 샘플링). 평균 지출이 캡보다 한참 낮아
+ *   지출 많은 스펙이 어디서나 이기므로 배분 비교에는 덜 맞다.
+ * fixed에 있는 파라미터는 그 값으로 두고 랜덤·스케일에서 뺀다. 아키텍처(philosophy, wheelbase)는 각각 반반.
+ */
+export function sampleSpec(regs: Regulations, rng: Rng, options: SampleOptions = {}): CarSpec {
+  const sampling = options.sampling ?? 'budget-surface';
+  const fixed = options.fixed ?? {};
   const philosophy = rng.next() < 0.5 ? 'floor' : 'wing';
   const wheelbase = rng.next() < 0.5 ? 'short' : 'long';
   const direction = SPEC_PARAMS.map(() => rng.next());
+  const isFixed = SPEC_PARAMS.map((p) => fixed[p.key] !== undefined);
+  const values = (s: number) => SPEC_PARAMS.map((p, i) => (isFixed[i] ? (fixed[p.key] ?? 0) : Math.min(1, (direction[i] ?? 0) * s)));
   if (sampling === 'budget-volume') {
     for (;;) {
-      const spec = specFrom(direction, philosophy, wheelbase);
+      const spec = specFrom(values(1), philosophy, wheelbase);
       if (cost(spec, regs) <= regs.cost.cap_credits) return spec;
       for (let i = 0; i < direction.length; i++) direction[i] = rng.next();
     }
   }
-  const at = (s: number) => specFrom(direction.map((x) => Math.min(1, x * s)), philosophy, wheelbase);
+  const at = (s: number) => specFrom(values(s), philosophy, wheelbase);
+  if (cost(at(0), regs) > regs.cost.cap_credits) throw new Error('fixed parameters alone exceed the cost cap');
   let lo = 0;
-  let hi = 1 / Math.max(Math.min(...direction), Number.MIN_VALUE);
+  let hi = 1 / Math.max(Math.min(...direction.filter((_, i) => !isFixed[i])), Number.MIN_VALUE);
   if (cost(at(hi), regs) <= regs.cost.cap_credits) return at(hi);
   for (let k = 0; k < BISECTION_STEPS; k++) {
     const mid = (lo + hi) / 2;

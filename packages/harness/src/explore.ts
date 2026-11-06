@@ -6,13 +6,15 @@ import { availableParallelism } from 'node:os';
 import { Worker } from 'node:worker_threads';
 import { makeRng, type CarSpec, type Track } from '@f1sim/core';
 import { loadRegulations, loadSeasonTracks } from './data.js';
-import { bestSetupLap, sampleSpec, seasonTime, type BestLap, type Sampling } from './design.js';
+import { bestSetupLap, raceOnlyFixed, sampleSpec, seasonTime, type BestLap, type Sampling } from './design.js';
 
 export interface DesignRunOptions {
   readonly season: number;
   readonly count: number;
   readonly seed: number;
   readonly sampling: Sampling;
+  /** 레이스 전용 파라미터를 균등 배분값으로 고정 (기본 true, design.ts RACE_ONLY_PARAMS 참고). */
+  readonly fixRaceOnly: boolean;
   /** 1이면 메인 스레드에서 직접 돈다 (테스트용). */
   readonly workers: number;
 }
@@ -60,7 +62,8 @@ export async function runDesignExploration(options: DesignRunOptions): Promise<D
   const regs = loadRegulations(options.season);
   const tracks = loadSeasonTracks(options.season, regs);
   const rng = makeRng(options.seed).spawn('design-specs');
-  const specs = Array.from({ length: options.count }, () => sampleSpec(regs, rng, options.sampling));
+  const fixed = options.fixRaceOnly ? raceOnlyFixed(regs) : {};
+  const specs = Array.from({ length: options.count }, () => sampleSpec(regs, rng, { sampling: options.sampling, fixed }));
 
   let results: BestLap[][];
   if (options.workers <= 1) {
