@@ -41,13 +41,15 @@ teams:
     model: gpt-6.1-terra
     command: [codex, exec, -m, gpt-6.1-terra, -s, workspace-write, --skip-git-repo-check, "{prompt}"]
 
-  # ── Cursor: Grok 4.7 (수동) ─────────────────────────────────────────
-  # 러너가 경로를 출력하면 Cursor에서 그 폴더를 열고, Agent 채팅에서 Grok 4.7을 고른 뒤 지시 문장을 보낸다.
-  # 헤드리스로 바꾸려면 Cursor CLI 설치 후: command: [cursor-agent, -p, --force, --model, <모델>, "{prompt}"]
-  - team: grok
+  # ── OpenCode: Nemotron 3.5 Super (헤드리스, 무료) ─────────────────────
+  # Grok 4.7(Cursor)은 Cursor 무료 한도로 시즌을 못 버텨 뺐다 (첫 스파 시험). Zen 무료 모델은 한도가 공개돼 있지 않다 —
+  # 이름 있는 업체의 큰 모델이고 컨텍스트 1M이라 골랐다. NVIDIA 체험 조건: 사용 기록이 남는다 (게임 데이터뿐이다).
+  # Grok을 다시 넣으려면: OpenCode Zen 로그인 후 -m opencode/grok-4.7 (유료), 또는 Cursor 수동 (label: cursor, command 없음).
+  - team: nemotron
     agent: coding
-    label: cursor
-    model: grok-4.7
+    label: opencode
+    model: nemotron-3.5-super-vl-free
+    command: [opencode, run, -m, opencode/nemotron-3.5-super-vl-free, "{prompt}"]
 
   # ── OpenCode: DeepSeek V4.1 Flash, GLM-5.3 Flash (헤드리스) ─────────────
   # 지금은 로그인 없이 쓸 수 있는 OpenCode Zen 무료판(-free). `opencode auth login`으로 OpenCode Zen에 로그인하면

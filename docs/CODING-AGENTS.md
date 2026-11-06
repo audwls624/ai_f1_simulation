@@ -26,13 +26,13 @@ You are team "<팀>" in the f1sim racing game, and the current directory is your
 | astra | Codex CLI | gpt-6-astra | 헤드리스 |
 | sol | Codex CLI | gpt-6.1-sol | 헤드리스 |
 | terra | Codex CLI | gpt-6.1-terra | 헤드리스 |
-| grok | Cursor | Grok 4.7 | 수동 (IDE) |
+| nemotron | OpenCode | Nemotron 3.5 Super (`opencode/nemotron-3.5-super-vl-free`) | 헤드리스 |
 | deepseek | OpenCode | DeepSeek V4.1 Flash (`opencode/deepseek-v4.1-flash-free`, 로그인하면 `-free` 빼기) | 헤드리스 |
 | glm | OpenCode | GLM-5.3 Flash (`opencode/glm-5.3-flash-free`, 로그인하면 `-free` 빼기) | 헤드리스 |
 | flash | Antigravity | Gemini 3.8 Flash | 수동 (IDE) |
 | heuristic-01 | 휴리스틱 | — | 기준선 |
 
-같은 도구의 팀(opus·sonnet·fable, astra·sol·terra)은 레드불과 레이싱 불스처럼 별개 팀이다. 뷰어 색은 팀 파일 순서로 8팀까지 — 9·10번째 코딩 에이전트 팀(glm, flash)과 휴리스틱은 회색에 약칭으로 구분한다. 포인트·순위·워크스페이스가 따로이고, 서로의 워크스페이스를 보면 안 된다.
+같은 도구의 팀(opus·sonnet·fable, astra·sol·terra)은 레드불과 레이싱 불스처럼 별개 팀이다. 뷰어 색은 팀 파일 순서로 8팀까지 — 9·10번째 코딩 에이전트 팀(glm, flash)과 휴리스틱은 회색에 약칭으로 구분한다. Grok 4.7(Cursor)은 첫 스파 시험에서 Cursor 무료 한도에 걸려 Nemotron으로 바꿨다. OpenCode Zen 무료 모델은 전부 "기간 한정"이고 사용량 한도는 공개돼 있지 않다 (opencode.ai/docs/zen). 포인트·순위·워크스페이스가 따로이고, 서로의 워크스페이스를 보면 안 된다.
 
 ## 도구별 준비
 
