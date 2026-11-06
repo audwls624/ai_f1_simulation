@@ -26,11 +26,12 @@ You are team "<팀>" in the f1sim racing game, and the current directory is your
 | astra | Codex CLI | astra (모델 이름 확인) | 헤드리스 |
 | sol | Codex CLI | sol (모델 이름 확인) | 헤드리스 |
 | terra | Codex CLI | terra (모델 이름 확인) | 헤드리스 |
-| grok | (미정) | grok | 수동 |
-| flash | Gemini CLI | Flash (모델 ID 확인) | 헤드리스 |
-| heuristic-01, 02 | 휴리스틱 | — | 기준선 |
+| grok | Cursor | Grok 4.7 | 수동 (IDE) |
+| deepseek | OpenCode | DeepSeek V4.1 Flash (provider/model 확인) | 헤드리스 |
+| flash | Antigravity | Gemini 3.8 Flash | 수동 (IDE) |
+| heuristic-01 | 휴리스틱 | — | 기준선 |
 
-같은 도구의 팀(opus·sonnet·fable, astra·sol·terra)은 레드불과 레이싱 불스처럼 별개 팀이다. 포인트·순위·워크스페이스가 따로이고, 서로의 워크스페이스를 보면 안 된다.
+같은 도구의 팀(opus·sonnet·fable, astra·sol·terra)은 레드불과 레이싱 불스처럼 별개 팀이다. 뷰어 색은 팀 파일 순서로 8팀까지 — 9번째 코딩 에이전트 팀(flash)과 휴리스틱은 회색에 약칭으로 구분한다. 포인트·순위·워크스페이스가 따로이고, 서로의 워크스페이스를 보면 안 된다.
 
 ## 도구별 준비
 
@@ -44,11 +45,11 @@ You are team "<팀>" in the f1sim racing game, and the current directory is your
 - 명령: `codex exec -m <모델> -s workspace-write --skip-git-repo-check "{prompt}"`
 - `-m`에 astra / sol / terra의 실제 모델 이름을 넣는다 (`teams.example.yaml`의 TODO). 워크스페이스는 git 저장소가 아니라 `--skip-git-repo-check`가 필요하다. `workspace-write` 샌드박스는 워크스페이스 안에만 쓴다 — `./f1sim`은 파일로 통신하므로 네트워크가 막혀도 된다.
 
-**Gemini CLI** (`gemini`)
+**Gemini CLI** (`gemini`) — 이번 라인업의 Flash는 Antigravity(수동)로 간다. 같은 모델을 헤드리스로 돌릴 때의 대안.
 - 명령: `gemini -m <Flash 모델 ID> --approval-mode yolo -p "{prompt}"`
 - `./f1sim` 실행에 셸 승인이 필요해 `yolo`다. 모든 도구 호출이 자동 승인되므로 이 팀은 지시(“이 디렉터리 안에서만”)에 더 기댄다. `-s`(샌드박스)를 쓸 수 있으면 붙인다.
 
-**Grok** — 이 머신에 헤드리스 CLI가 없어 수동으로 둔다. 헤드리스로 돌릴 도구(예: OpenCode의 xAI 모델)가 정해지면 `command`를 넣는다.
+**Grok** — Cursor에서 Grok 4.7로 (아래 Cursor 항목).
 
 **Cursor** — IDE(수동) 또는 Cursor CLI(헤드리스).
 - 수동: 팀 파일에서 `command`를 뺀다. 러너가 경로를 출력하면 Cursor에서 그 폴더를 열고(File → Open Folder) Agent 채팅에서 모델을 고른 뒤 지시 문장을 보낸다. 터미널 명령마다 승인을 묻는 설정이면 `./f1sim`을 허용 목록에 넣거나 자동 실행을 켠다 — 풍동 20회를 10분 안에 써야 한다.
@@ -65,9 +66,9 @@ You are team "<팀>" in the f1sim racing game, and the current directory is your
 
 **수동 팀을 편하게:** `--workspaces <폴더>`로 워크스페이스 위치를 정하면 팀 폴더가 실행 내내 같다. IDE 창을 그 폴더에 열어 두고 호출마다 새 대화만 시작하면 된다 (`TASK.md`·`packet.json`이 호출마다 바뀐다). 시즌마다 새 폴더를 쓸 것 — 지난 시즌 메모가 남는다.
 
-## 수동 팀 진행 (Grok, Antigravity 같은 IDE·앱 에이전트)
+## 수동 팀 진행 (Cursor·Antigravity 같은 IDE 에이전트)
 
-1. 러너 출력에서 그 팀 줄을 기다린다: `· grok GP 3 (...): open <경로> in the team's coding agent and ask it to follow TASK.md (time limit 10 min)`
+1. 러너 출력에서 그 팀 줄을 기다린다 (같은 단계의 수동 팀 줄은 동시에 나온다): `· grok GP 3 (...): open <경로> in the team's coding agent and ask it to follow TASK.md (time limit 10 min)`
 2. 그 경로를 에이전트로 열고 위의 지시 문장을 보낸다. 시계는 러너가 이 줄을 낸 순간부터 돈다.
 3. 에이전트가 `./f1sim submit`으로 내고 `Accepted`를 받으면 끝. 러너가 다음 단계로 간다.
 4. 호출마다 새 대화로 시작한다. 헤드리스 팀도 매번 새 세션이라, 같은 대화를 이어 쓰면 기억에서 이득을 본다. 시즌 동안 남기고 싶은 것은 워크스페이스에 메모로 남긴다 (모든 팀이 같은 조건).

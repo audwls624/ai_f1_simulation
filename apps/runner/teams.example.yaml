@@ -41,21 +41,29 @@ teams:
     model: terra
     command: [codex, exec, -m, terra, -s, workspace-write, --skip-git-repo-check, "{prompt}"]
 
-  # ── Grok ────────────────────────────────────────────────────────────
-  # 이 머신에 Grok CLI가 없어 수동. 헤드리스로 돌릴 도구가 정해지면 command를 넣는다.
+  # ── Cursor: Grok 4.7 (수동) ─────────────────────────────────────────
+  # 러너가 경로를 출력하면 Cursor에서 그 폴더를 열고, Agent 채팅에서 Grok 4.7을 고른 뒤 지시 문장을 보낸다.
+  # 헤드리스로 바꾸려면 Cursor CLI 설치 후: command: [cursor-agent, -p, --force, --model, <모델>, "{prompt}"]
   - team: grok
     agent: coding
-    label: grok
-    model: grok
+    label: cursor
+    model: grok-4.7
 
-  # ── Gemini CLI ──────────────────────────────────────────────────────
-  # TODO: -m 값을 쓰려는 Flash 모델 ID로. ./f1sim 실행에 셸 승인이 필요해 approval-mode yolo.
+  # ── OpenCode: DeepSeek V4.1 Flash (헤드리스) ──────────────────────────
+  # TODO: -m 값을 `opencode models`에 나오는 provider/model 이름으로. 비대화 모드라 OpenCode 설정에서 bash·edit을 허용해 둘 것.
+  - team: deepseek
+    agent: coding
+    label: opencode
+    model: deepseek-v4.1-flash
+    command: [opencode, run, -m, deepseek/deepseek-v4.1-flash, "{prompt}"]
+
+  # ── Antigravity: Gemini 3.8 Flash (수동) ─────────────────────────────
+  # 러너가 경로를 출력하면 Antigravity에서 그 폴더를 열고, 에이전트 대화에서 Gemini 3.8 Flash를 고른 뒤 지시 문장을 보낸다.
+  # 손 안 대고 돌리려면 Gemini CLI로: command: [gemini, -m, <모델 ID>, --approval-mode, yolo, -p, "{prompt}"]
   - team: flash
     agent: coding
-    label: gemini-cli
-    model: gemini-flash
-    command: [gemini, -m, gemini-flash, --approval-mode, yolo, -p, "{prompt}"]
+    label: antigravity
+    model: gemini-3.8-flash
 
   # ── 기준선 (12절: LLM 팀이 휴리스틱을 꾸준히 못 이기면 툴·패킷을 재검토) ─────────
   - { team: heuristic-01, agent: heuristic }
-  - { team: heuristic-02, agent: heuristic }
