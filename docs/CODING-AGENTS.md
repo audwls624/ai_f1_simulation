@@ -50,6 +50,21 @@ You are team "<팀>" in the f1sim racing game, and the current directory is your
 
 **Grok** — 이 머신에 헤드리스 CLI가 없어 수동으로 둔다. 헤드리스로 돌릴 도구(예: OpenCode의 xAI 모델)가 정해지면 `command`를 넣는다.
 
+**Cursor** — IDE(수동) 또는 Cursor CLI(헤드리스).
+- 수동: 팀 파일에서 `command`를 뺀다. 러너가 경로를 출력하면 Cursor에서 그 폴더를 열고(File → Open Folder) Agent 채팅에서 모델을 고른 뒤 지시 문장을 보낸다. 터미널 명령마다 승인을 묻는 설정이면 `./f1sim`을 허용 목록에 넣거나 자동 실행을 켠다 — 풍동 20회를 10분 안에 써야 한다.
+- 헤드리스: Cursor CLI를 설치하고 로그인한 뒤 `command: [cursor-agent, -p, --force, --model, <모델>, "{prompt}"]`. (이 머신에 설치돼 있지 않아 플래그는 확인하지 못했다 — 1GP 시험으로 확인.)
+
+**Antigravity** — IDE라 수동.
+- 팀 파일에서 `command`를 뺀다. 러너가 경로를 출력하면 Antigravity에서 그 폴더를 열고, 에이전트 대화에서 모델(Gemini Flash)을 고른 뒤 지시 문장을 보낸다.
+- 터미널 명령 실행이 매번 승인 대기면 `./f1sim` 실행을 자동으로 허용하는 쪽으로 바꾼다 (설정 이름은 버전마다 다를 수 있다).
+- 같은 모델을 헤드리스로 돌리고 싶으면 Gemini CLI 항목을 쓴다.
+
+**OpenCode** (`opencode`) — 헤드리스.
+- `command: [opencode, run, -m, <provider/model>, "{prompt}"]` (예: xAI 모델이면 `xai/<모델>`). 비대화 모드에서 셸·편집 권한 확인이 막히지 않도록 OpenCode 설정에서 이 워크스페이스의 bash·edit을 허용한다.
+- 이 머신의 opencode는 비TTY에서 도움말을 출력하지 않아 플래그를 확인하지 못했다 — 1GP 시험으로 확인.
+
+**수동 팀을 편하게:** `--workspaces <폴더>`로 워크스페이스 위치를 정하면 팀 폴더가 실행 내내 같다. IDE 창을 그 폴더에 열어 두고 호출마다 새 대화만 시작하면 된다 (`TASK.md`·`packet.json`이 호출마다 바뀐다). 시즌마다 새 폴더를 쓸 것 — 지난 시즌 메모가 남는다.
+
 ## 수동 팀 진행 (Grok, Antigravity 같은 IDE·앱 에이전트)
 
 1. 러너 출력에서 그 팀 줄을 기다린다: `· grok GP 3 (...): open <경로> in the team's coding agent and ask it to follow TASK.md (time limit 10 min)`
